@@ -20,6 +20,9 @@ import { HUD } from './hud.js';
 import { World } from './world.js';
 import { rand } from './util.js';
 
+// Classic "hor+" FOV: the setting is the horizontal FOV at 4:3, converted to vertical.
+const vfov = (h) => (2 * Math.atan(Math.tan((h * Math.PI) / 360) * 0.75) * 180) / Math.PI;
+
 export const DIFFICULTIES = [
   { id: 'tourist', name: 'Tourist', hp: 0.6, dmg: 0.35 },
   { id: 'easy', name: 'Easy', hp: 0.8, dmg: 0.65 },
@@ -93,7 +96,7 @@ export class Game {
     r.autoClear = false;
 
     this.scene = new THREE.Scene();
-    this.camera = new THREE.PerspectiveCamera(this.settings.fov * 0.75, 1, 0.1, 1500);
+    this.camera = new THREE.PerspectiveCamera(vfov(this.settings.fov), 1, 0.1, 1500);
     this.camera.rotation.order = 'YXZ';
     this.scene.add(this.camera);
 
@@ -189,7 +192,7 @@ export class Game {
       if (this.sun.shadow.map) { this.sun.shadow.map.dispose(); this.sun.shadow.map = null; }
     }
     this.bloom.enabled = q !== 'low';
-    this.camera.fov = this.settings.fov * 0.75;
+    this.camera.fov = vfov(this.settings.fov);
     this.camera.updateProjectionMatrix();
     this.audio.setVolumes({ master: this.settings.volume, music: this.settings.music });
     document.getElementById('hud-fps').style.display = this.settings.showFps ? 'block' : 'none';
@@ -594,6 +597,7 @@ export class Game {
   levelComplete() {
     this.state = 'complete';
     this.input.unlock();
+    this.hud.show(false);
     this.audio.play('victory');
     this.carry = { health: this.player.health, armor: this.player.armor, weapons: this.weapons.snapshot() };
     const next = this.levelIndex + 1;
@@ -611,6 +615,7 @@ export class Game {
   victory() {
     this.state = 'victory';
     this.input.unlock();
+    this.hud.show(false);
     this.audio.play('victory');
     this.progress.unlocked = LEVELS.length;
     this.progress.beaten = true;

@@ -325,46 +325,49 @@ export function makeEnemyModel(type) {
       return { root, rig: r, height: 4.6 };
     }
     case 'boss': {
+      // Colossal black-basalt pharaoh with gold regalia and a burning core.
       const root = new THREE.Group();
       const body = pivot(root);
       const r = { body };
-      const sc = 1;
+      const stone = G.basalt, trim = G.gold;
       for (const side of [-1, 1]) {
         const hip = pivot(body, side * 1.6, 6, 0);
-        part(box(1.4, 3.2, 1.5), G.sandstone, 0, -1.5, 0, hip);
+        part(box(1.4, 3.2, 1.5), stone, 0, -1.5, 0, hip);
         const knee = pivot(hip, 0, -3.1, 0);
-        part(box(1.2, 3.0, 1.3), G.sandstone, 0, -1.4, 0, knee);
-        part(box(1.6, 0.6, 2.4), G.sandstoneDark, 0, -2.8, -0.4, knee);
-        part(box(1.45, 0.4, 1.55), G.gold, 0, 0, 0, knee);
+        part(box(1.2, 3.0, 1.3), stone, 0, -1.4, 0, knee);
+        part(box(1.6, 0.6, 2.4), trim, 0, -2.8, -0.4, knee);
+        part(box(1.45, 0.4, 1.55), trim, 0, 0, 0, knee);
+        part(box(0.2, 1.6, 0.1), M.glowOrange, 0, -1.2, -0.66, knee, false);
         r[side < 0 ? 'hipL' : 'hipR'] = hip; r[side < 0 ? 'kneeL' : 'kneeR'] = knee;
       }
       const torso = pivot(body, 0, 6, 0);
-      part(box(4.0, 1.4, 2.2), G.gold, 0, 0.2, 0, torso); // kilt belt
-      part(box(3.6, 4.2, 2.2), G.sandstone, 0, 3.0, 0, torso);
-      part(box(4.6, 0.9, 2.6), G.gold, 0, 4.6, 0, torso); // collar
-      part(box(0.9, 0.9, 0.1), M.glowRed, 0, 3.2, -1.12, torso, false); // core
+      for (let i = 0; i < 5; i++) part(box(4.0 - i * 0.02, 0.28, 2.2), i % 2 ? M.blueStripe : trim, 0, -0.3 + i * 0.28, 0, torso); // striped kilt belt
+      part(box(3.6, 4.2, 2.2), stone, 0, 3.0, 0, torso);
+      part(box(4.6, 0.9, 2.6), trim, 0, 4.6, 0, torso); // collar
+      for (let i = 0; i < 3; i++) part(box(3.8 - i * 0.6, 0.18, 0.1), M.glowOrange, 0, 1.6 + i * 0.5, -1.12, torso, false); // glowing ribs
+      r.core = part(sph(0.6, 16, 12), M.glowRed, 0, 3.4, -1.0, torso, false);
       const head = pivot(torso, 0, 5.2, 0);
-      part(box(1.5, 1.9, 1.6), G.sandstone, 0, 0.9, 0, head);
-      // nemes headdress
-      for (let i = 0; i < 6; i++) part(box(2.4 - i * 0.12, 0.25, 1.9), i % 2 ? M.blueStripe : G.gold, 0, 1.9 - i * 0.28, 0.1, head);
+      part(box(1.5, 1.9, 1.6), stone, 0, 0.9, 0, head);
+      for (let i = 0; i < 6; i++) part(box(2.4 - i * 0.12, 0.25, 1.9), i % 2 ? M.blueStripe : trim, 0, 1.9 - i * 0.28, 0.1, head);
       for (const s of [-1, 1]) {
-        part(box(0.6, 2.2, 0.6), G.gold, s * 1.05, 0.2, 0.2, head);
-        part(box(0.35, 0.18, 0.1), M.glowRed, s * 0.38, 1.1, -0.82, head, false);
+        part(box(0.6, 2.2, 0.6), trim, s * 1.05, 0.2, 0.2, head);
+        part(box(0.42, 0.24, 0.12), M.glowRed, s * 0.38, 1.1, -0.82, head, false);
       }
-      part(box(0.35, 0.9, 0.3), G.gold, 0, -0.3, -0.7, head); // beard
+      part(cone(0.25, 0.7, 4), trim, 0, 2.4, -0.7, head).rotation.x = -0.3; // uraeus cobra
+      part(box(0.35, 0.9, 0.3), trim, 0, -0.3, -0.7, head); // beard
       r.cannons = [];
       for (const s of [-1, 1]) {
         const sh = pivot(torso, s * 2.4, 4.2, 0);
-        part(box(1.1, 1.1, 1.1), G.gold, 0, 0, 0, sh);
-        part(box(0.9, 2.8, 0.9), G.sandstone, 0, -1.6, 0, sh);
+        part(box(1.1, 1.1, 1.1), trim, 0, 0, 0, sh);
+        part(box(0.9, 2.8, 0.9), stone, 0, -1.6, 0, sh);
         const el = pivot(sh, 0, -3.0, 0);
         part(box(1.0, 1.0, 3.2), G.darkmetal, 0, 0, -1.2, el);
+        for (let i = 0; i < 3; i++) part(box(1.15, 1.15, 0.2), trim, 0, 0, -0.2 - i * 0.9, el);
         part(cyl(0.5, 0.5, 0.5, 10), M.glowOrange, 0, 0, -2.85, el, false).rotation.x = Math.PI / 2;
         r.cannons.push(pivot(el, 0, 0, -3.2));
         r[s < 0 ? 'armL' : 'armR'] = sh; r[s < 0 ? 'elbowL' : 'elbowR'] = el;
       }
       r.torso = torso; r.head = head;
-      void sc;
       return { root, rig: r, height: 14 };
     }
   }
@@ -373,6 +376,7 @@ export function makeEnemyModel(type) {
 
 // ---------------------------------------------------------------------------
 // First-person weapon viewmodels (barrel points to -Z).
+const LASER_GLOW = new THREE.MeshStandardMaterial({ color: 0x003322, emissive: 0x33ffcc, emissiveIntensity: 1.2 });
 export function makeWeaponModel(id) {
   const G = getMaterials();
   const M = mats();
@@ -439,7 +443,6 @@ export function makeWeaponModel(id) {
       tube(0.06, 0.03, G.darkmetal, 0, 0, -0.35, spin);
       tube(0.06, 0.03, G.darkmetal, 0, 0, 0.1, spin);
       P(box(0.16, 0.14, 0.3), G.darkmetal, 0, 0, 0.12);
-      P(box(0.04, 0.12, 0.05), G.darkmetal, 0, 0.12, 0.05);
       P(box(0.1, 0.1, 0.18), G.brass, 0.1, -0.05, 0.12);
       r.spin = spin;
       r.muzzles.push(new THREE.Vector3(0, 0, -0.66));
@@ -467,10 +470,10 @@ export function makeWeaponModel(id) {
     }
     case 'laser': {
       P(box(0.14, 0.12, 0.4), new THREE.MeshStandardMaterial({ color: 0x7a8490, roughness: 0.4, metalness: 0.6 }), 0, 0, -0.05);
-      P(box(0.04, 0.03, 0.28), M.glowCyan, 0, 0.07, -0.05);
+      P(box(0.04, 0.03, 0.28), LASER_GLOW, 0, 0.07, -0.05);
       for (const [x, y] of [[-0.035, 0.03], [0.035, 0.03], [-0.035, -0.03], [0.035, -0.03]]) {
         tube(0.018, 0.3, G.gunmetal, x, y, -0.35, g, 8);
-        P(sph(0.02, 8, 6), M.glowCyan, x, y, -0.5);
+        P(sph(0.02, 8, 6), LASER_GLOW, x, y, -0.5);
         r.muzzles.push(new THREE.Vector3(x, y, -0.52));
       }
       P(box(0.05, 0.12, 0.06), G.darkmetal, 0, -0.1, 0.05);

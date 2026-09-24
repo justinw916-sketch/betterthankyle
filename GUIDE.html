@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SAM Field Guide</title>
+<style>
+  :root {
+    --bg: #0f0c08; --panel: #1a150d; --panel2: #231b10; --ink: #efe6d2; --dim: #b9a984; --gold: #ffc94a; --gold2: #b8862a;
+    --red: #ff5a4a; --cyan: #7fdcff; --green: #7dff9a; --line: rgba(255, 201, 74, .22);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.6 'Segoe UI', system-ui, sans-serif; }
+  header { padding: 56px 16px 36px; text-align: center; background: radial-gradient(ellipse at top, #3a2508 0%, var(--bg) 70%); border-bottom: 1px solid var(--line); }
+  header h1 { margin: 0; font: 900 clamp(56px, 12vw, 120px)/1 Impact, 'Arial Black', sans-serif; letter-spacing: 10px;
+    background: linear-gradient(180deg, #fff6d0, #ffcf5a 45%, #b0601a); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  header p { margin: 8px 0 0; color: var(--dim); letter-spacing: 4px; text-transform: uppercase; }
+  nav { position: sticky; top: 0; z-index: 5; background: rgba(15, 12, 8, .92); backdrop-filter: blur(6px); border-bottom: 1px solid var(--line);
+    display: flex; flex-wrap: wrap; gap: 4px 18px; justify-content: center; padding: 10px 16px; }
+  nav a { color: var(--gold); text-decoration: none; font-weight: 600; font-size: 14px; letter-spacing: 1px; text-transform: uppercase; }
+  nav a:hover { color: #fff; }
+  main { max-width: 1080px; margin: 0 auto; padding: 16px; }
+  section { margin: 40px 0; }
+  h2 { color: var(--gold); font: 700 30px/1.2 Impact, 'Arial Black', sans-serif; letter-spacing: 2px; border-bottom: 1px solid var(--line); padding-bottom: 8px; }
+  h3 { color: var(--cyan); margin: 24px 0 8px; }
+  code, kbd { background: var(--panel2); border: 1px solid var(--line); border-radius: 4px; padding: 1px 6px; font-size: 14px; color: var(--gold); }
+  pre { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 14px; overflow-x: auto; color: #e8dcc0; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+  .card h4 { margin: 0 0 4px; color: var(--gold); font-size: 17px; }
+  .card .tag { display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: 99px; background: var(--panel2); color: var(--dim); margin-right: 4px; }
+  .stat { display: flex; justify-content: space-between; font-size: 14px; color: var(--dim); border-bottom: 1px dashed rgba(255,255,255,.06); }
+  .stat b { color: var(--ink); }
+  table { width: 100%; border-collapse: collapse; font-size: 15px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid rgba(255,255,255,.06); }
+  th { background: var(--panel2); color: var(--gold); font-size: 13px; letter-spacing: 1px; text-transform: uppercase; }
+  .scroll { overflow-x: auto; }
+  .callout { border-left: 4px solid var(--gold); background: var(--panel); padding: 12px 16px; border-radius: 0 8px 8px 0; }
+  .diagram { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px; }
+  .diagram svg { width: 100%; height: auto; display: block; }
+  details { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; margin: 10px 0; }
+  summary { cursor: pointer; color: var(--gold); font-weight: 700; }
+  footer { text-align: center; color: var(--dim); padding: 30px 16px 50px; font-size: 14px; border-top: 1px solid var(--line); }
+  @media (max-width: 600px) { h2 { font-size: 24px; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>SAM</h1>
+  <p>Serious Arena Mayhem · Field Guide &amp; Technical Manual</p>
+</header>
+<nav>
+  <a href="#play">Play</a><a href="#controls">Controls</a><a href="#weapons">Arsenal</a><a href="#enemies">Bestiary</a>
+  <a href="#levels">Levels</a><a href="#arch">Architecture</a><a href="#tech">Tech</a><a href="#tests">Testing</a><a href="#tuning">Tuning</a>
+</nav>
+<main>
+
+<section id="play">
+  <h2>What it is</h2>
+  <p><b>SAM</b> is a browser-based, old-school arena shooter built as a homage to the 2001 classic: huge sun-bleached Egyptian arenas,
+    circle-strafing at 10.5&nbsp;m/s, screaming headless kamikazes, charging bulls, a ten-gun arsenal and a skyscraper-sized boss.
+    Every texture, model, sound effect and music track is <b>generated procedurally at load time</b>, so the repo ships no binary assets
+    and runs offline. The only dependency is a vendored copy of Three.js (MIT).</p>
+  <div class="callout"><b>Name note:</b> this is an unofficial fan homage. It uses original procedural art/audio and descriptive enemy names
+    rather than any of the original game's assets or trademarks.</div>
+
+  <h3>Run it locally</h3>
+  <p>ES modules need to be served over HTTP (opening <code>index.html</code> via <code>file://</code> will not work). Pick one:</p>
+<pre># Node (no install needed)
+npx http-server -c-1 -p 8080 .
+
+# Python
+python -m http.server 8080
+
+# Docker (Windows PowerShell, from the repo folder)
+docker build -t sam . ; docker run --rm -p 8080:80 sam</pre>
+  <p>Then open <code>http://localhost:8080</code> in Chrome, Edge or Firefox. A WebGL2-capable GPU is required; any discrete GPU
+    (for example a Legion laptop's RTX) runs the <b>High</b>/<b>Ultra</b> presets comfortably.</p>
+  <h3>Deploy</h3>
+  <p>It is a static site: GitHub Pages, Netlify, Cloudflare Pages or any S3 bucket works as-is. There's no build step.</p>
+</section>
+
+<section id="controls">
+  <h2>Controls</h2>
+  <div class="scroll"><table>
+    <tr><th>Input</th><th>Action</th><th>Notes</th></tr>
+    <tr><td><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / arrows</td><td>Move / strafe</td><td>Quake-style acceleration with strong air control</td></tr>
+    <tr><td>Mouse</td><td>Look</td><td>Pointer-lock; sensitivity + invert in Options</td></tr>
+    <tr><td>Left click</td><td>Fire</td><td>Hold to charge the SBC Cannon, release to fire</td></tr>
+    <tr><td><kbd>Space</kbd></td><td>Jump</td><td>Rocket jumping works (your own splash damage is reduced 65%)</td></tr>
+    <tr><td><kbd>Shift</kbd></td><td>Walk</td><td>45% speed</td></tr>
+    <tr><td><kbd>1</kbd>–<kbd>9</kbd>, <kbd>0</kbd></td><td>Select weapon</td><td>Mouse wheel cycles; <kbd>Q</kbd> = previous weapon</td></tr>
+    <tr><td><kbd>Esc</kbd> / <kbd>P</kbd></td><td>Pause</td><td>Click the canvas to recapture the mouse</td></tr>
+  </table></div>
+</section>
+
+<section id="weapons">
+  <h2>The Arsenal</h2>
+  <p>Damage figures are per hit on Normal before the ×4 <b>Serious Damage</b> power-up. Hitscan weapons trace against a spatial
+    hash of the level and per-enemy hit spheres; skeletons take ×2 on skull hits.</p>
+  <div class="scroll"><table>
+    <tr><th>#</th><th>Weapon</th><th>Type</th><th>Damage</th><th>Fire interval</th><th>Ammo (max)</th><th>Use it for</th></tr>
+    <tr><td>1</td><td>Military Knife</td><td>Melee</td><td>70</td><td>0.50 s</td><td>—</td><td>Finishing gnashers, saving ammo</td></tr>
+    <tr><td>2</td><td>Schofield Revolver</td><td>Hitscan, 6-shot clip (dual after 2nd pickup)</td><td>20</td><td>0.32 s (0.19 dual)</td><td>∞</td><td>Precise long-range picks</td></tr>
+    <tr><td>3</td><td>Pump Shotgun</td><td>8 pellets</td><td>8 × 11</td><td>0.90 s</td><td>Shells (100)</td><td>Gnashers, kamikazes mid-range</td></tr>
+    <tr><td>4</td><td>Double Coach Gun</td><td>18 pellets</td><td>18 × 11</td><td>1.25 s</td><td>Shells ×2</td><td>Point-blank devastation</td></tr>
+    <tr><td>5</td><td>Tommygun</td><td>Hitscan auto</td><td>12</td><td>0.095 s</td><td>Bullets (500)</td><td>Harpies, gunners</td></tr>
+    <tr><td>6</td><td>XM-214 Minigun</td><td>Hitscan, 0.5 s spin-up</td><td>12</td><td>0.05 s</td><td>Bullets</td><td>Hordes, bulls</td></tr>
+    <tr><td>7</td><td>Rocket Launcher</td><td>Projectile, splash r=5 m</td><td>100 + 90 splash</td><td>0.62 s</td><td>Rockets (50)</td><td>Arachnids, biomechs, groups</td></tr>
+    <tr><td>8</td><td>Grenade Launcher</td><td>Bouncing, 2.3 s fuse / contact</td><td>100 + 110 splash</td><td>0.70 s</td><td>Grenades (50)</td><td>Corners, packs behind cover</td></tr>
+    <tr><td>9</td><td>XL2 Laser Gun</td><td>Fast bolts, 4 barrels</td><td>20</td><td>0.085 s</td><td>Cells (400)</td><td>Sustained DPS on anything</td></tr>
+    <tr><td>0</td><td>SBC Cannon</td><td>Rolling cannonball, pierces kills</td><td>700 + 250 splash</td><td>1.1 s + charge</td><td>Cannonballs (30)</td><td>Bowling through kamikaze lines, the boss</td></tr>
+  </table></div>
+</section>
+
+<section id="enemies">
+  <h2>Bestiary</h2>
+  <p>HP is scaled by difficulty (Tourist ×0.6 … Serious ×1.5); damage dealt to you is scaled ×0.35 … ×1.8.</p>
+  <div class="grid">
+    <div class="card"><h4>Headless Kamikaze</h4><span class="tag">10 HP</span><span class="tag">9.5 m/s</span>
+      <p>Sprints at you screaming with a bomb in each hand and detonates on contact (4.2 m blast). Killing one near its friends starts a chain reaction. Backpedal and shoot.</p></div>
+    <div class="card"><h4>Headless Rocketeer</h4><span class="tag">25 HP</span><span class="tag">ranged</span>
+      <p>Keeps 9–22 m away, strafes, and lobs led fireballs when it has line of sight. Pillars block its shots.</p></div>
+    <div class="card"><h4>One-Eyed Gnasher</h4><span class="tag">40 HP</span><span class="tag">melee</span>
+      <p>A furry ball of teeth. Charges and bites for 10. Hops up ledges if you camp on a platform.</p></div>
+    <div class="card"><h4>Horned Skeleton</h4><span class="tag">90 HP</span><span class="tag">leaper</span>
+      <p>Lopes at 9 m/s, leaps across gaps and throws twin chain-balls. Headshots deal double damage.</p></div>
+    <div class="card"><h4>Horned Bull</h4><span class="tag">220 HP</span><span class="tag">16 m/s charge</span>
+      <p>Picks a point 12 m past you and charges with limited turning. Sidestep late; getting hit deals 28 plus heavy knockback.</p></div>
+    <div class="card"><h4>Arachnid Soldier</h4><span class="tag">500 HP</span><span class="tag">14-round bursts</span>
+      <p>Scorpion-bodied gunner. Plants itself at ~26 m and hoses you with twin guns, and its tail stings anything close. Use rockets.</p></div>
+    <div class="card"><h4>Winged Harpy</h4><span class="tag">40 HP</span><span class="tag">flying</span>
+      <p>Circles overhead, spits venom, then dives for a claw strike and climbs away. Track it with the tommygun.</p></div>
+    <div class="card"><h4>Biomechanoid</h4><span class="tag">700 HP</span><span class="tag">homing rockets</span>
+      <p>Heavy walker firing paired homing rockets every ~3 s. Break line of sight behind pillars and let the rockets hit stone.</p></div>
+    <div class="card"><h4>The Colossus (boss)</h4><span class="tag">14 000 HP</span><span class="tag">22 m tall</span>
+      <p>Cycles fireball volleys, cannon barrages, a ground-stomp shockwave (jump to dodge it: it only hurts grounded targets)
+        and summons kamikazes, harpies and gnashers. Enrages below 50% HP.</p></div>
+  </div>
+</section>
+
+<section id="levels">
+  <h2>Levels</h2>
+  <div class="grid">
+    <div class="card"><h4>1 · Temple of the Sun</h4><span class="tag">day</span><span class="tag">100 enemies</span>
+      <p>Hatshepsut-style courtyard, a corridor, then a temple plaza with sphinxes. Finds: shotgun, tommygun, double coach gun, a super-health in a corner.</p></div>
+    <div class="card"><h4>2 · Oasis of Scorpions</h4><span class="tag">dusk</span><span class="tag">116 enemies</span>
+      <p>A palm-ringed oasis, then a walled fortress with a stepped central platform. Finds: rocket launcher, minigun, Serious Damage.</p></div>
+    <div class="card"><h4>3 · Valley of the Moon</h4><span class="tag">night</span><span class="tag">133 enemies</span>
+      <p>Torch-lit basalt halls under a starfield, then a valley lined with jackal-headed statues. Finds: grenade launcher, laser gun.</p></div>
+    <div class="card"><h4>4 · The Great Pyramid</h4><span class="tag">blood-red sky</span><span class="tag">boss</span>
+      <p>A warm-up arena, then a 140×140 m amphitheatre before the Great Pyramid for the Colossus. Finds: SBC Cannon and stockpiles of ammo.</p></div>
+  </div>
+  <p>Weapons, ammo, health and armor carry between levels. Clearing an arena saves a <b>checkpoint</b>; dying offers a respawn there.
+    Choosing a later level from <i>Select Level</i> grants a fair starting loadout.</p>
+</section>
+
+<section id="arch">
+  <h2>Architecture</h2>
+  <div class="diagram">
+  <svg viewBox="0 0 1000 520" role="img" aria-label="Module architecture diagram">
+    <defs>
+      <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#b8862a"/></marker>
+      <style>.b{fill:#231b10;stroke:#b8862a;stroke-width:1.5;rx:8}.t{fill:#efe6d2;font:600 15px 'Segoe UI',sans-serif;text-anchor:middle}.s{fill:#b9a984;font:12px 'Segoe UI',sans-serif;text-anchor:middle}.l{stroke:#b8862a;stroke-width:1.4;fill:none;marker-end:url(#ar)}.h{fill:#3a2508;stroke:#ffc94a;stroke-width:2;rx:10}</style>
+    </defs>
+    <rect class="h" x="400" y="20" width="200" height="60"/><text class="t" x="500" y="46">game.js</text><text class="s" x="500" y="66">state machine · loop · combat</text>
+    <rect class="b" x="30" y="140" width="160" height="56"/><text class="t" x="110" y="164">input.js</text><text class="s" x="110" y="182">keys · mouse · pointer lock</text>
+    <rect class="b" x="210" y="140" width="160" height="56"/><text class="t" x="290" y="164">player.js</text><text class="s" x="290" y="182">movement · vitals</text>
+    <rect class="b" x="390" y="140" width="160" height="56"/><text class="t" x="470" y="164">weapons.js</text><text class="s" x="470" y="182">arsenal · viewmodels</text>
+    <rect class="b" x="570" y="140" width="160" height="56"/><text class="t" x="650" y="164">enemies.js</text><text class="s" x="650" y="182">AI · animation</text>
+    <rect class="b" x="750" y="140" width="200" height="56"/><text class="t" x="850" y="164">projectiles.js</text><text class="s" x="850" y="182">rockets · bolts · fireballs</text>
+    <rect class="b" x="30" y="260" width="160" height="56"/><text class="t" x="110" y="284">hud.js / ui.js</text><text class="s" x="110" y="302">DOM overlay · menus</text>
+    <rect class="b" x="210" y="260" width="160" height="56"/><text class="t" x="290" y="284">pickups.js</text><text class="s" x="290" y="302">items · power-ups</text>
+    <rect class="b" x="390" y="260" width="160" height="56"/><text class="t" x="470" y="284">effects.js</text><text class="s" x="470" y="302">particles · gibs · lights</text>
+    <rect class="b" x="570" y="260" width="160" height="56"/><text class="t" x="650" y="284">audio.js</text><text class="s" x="650" y="302">synth SFX · music</text>
+    <rect class="b" x="750" y="260" width="200" height="56"/><text class="t" x="850" y="284">levels.js</text><text class="s" x="850" y="302">data · themes · waves</text>
+    <rect class="b" x="570" y="380" width="160" height="56"/><text class="t" x="650" y="404">models.js</text><text class="s" x="650" y="422">procedural meshes</text>
+    <rect class="b" x="750" y="380" width="200" height="56"/><text class="t" x="850" y="404">levelbuilder.js</text><text class="s" x="850" y="422">arenas · doors · decor</text>
+    <rect class="b" x="390" y="380" width="160" height="56"/><text class="t" x="470" y="404">world.js</text><text class="s" x="470" y="422">AABB grid · rays</text>
+    <rect class="b" x="210" y="380" width="160" height="56"/><text class="t" x="290" y="404">textures.js</text><text class="s" x="290" y="422">canvas + normal maps</text>
+    <rect class="b" x="390" y="460" width="160" height="44"/><text class="t" x="470" y="487">three.js (vendored)</text>
+    <path class="l" d="M430 80 L110 138"/><path class="l" d="M460 80 L290 138"/><path class="l" d="M490 80 L470 138"/><path class="l" d="M520 80 L650 138"/><path class="l" d="M560 80 L850 138"/>
+    <path class="l" d="M420 80 C300 110 150 200 110 258"/><path class="l" d="M450 80 C400 150 320 220 290 258"/><path class="l" d="M500 80 L470 258"/><path class="l" d="M540 80 C600 150 640 220 650 258"/><path class="l" d="M580 80 C700 150 830 220 850 258"/>
+    <path class="l" d="M850 316 L850 378"/><path class="l" d="M760 410 L732 410"/><path class="l" d="M650 196 L650 378"/><path class="l" d="M750 420 L552 420"/><path class="l" d="M800 436 C700 470 400 470 370 420"/>
+    <path class="l" d="M470 316 L470 378"/><path class="l" d="M470 436 L470 458"/>
+  </svg>
+  </div>
+
+  <h3>Frame loop</h3>
+  <div class="diagram">
+  <svg viewBox="0 0 1000 150" role="img" aria-label="Per-frame update order">
+    <defs><marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#ffc94a"/></marker></defs>
+    <g font-family="Segoe UI, sans-serif" font-size="13" text-anchor="middle">
+      <g fill="#231b10" stroke="#b8862a"><rect x="10" y="40" width="100" height="50" rx="8"/><rect x="130" y="40" width="100" height="50" rx="8"/><rect x="250" y="40" width="100" height="50" rx="8"/><rect x="370" y="40" width="100" height="50" rx="8"/><rect x="490" y="40" width="100" height="50" rx="8"/><rect x="610" y="40" width="100" height="50" rx="8"/><rect x="730" y="40" width="100" height="50" rx="8"/><rect x="850" y="40" width="140" height="50" rx="8"/></g>
+      <g fill="#efe6d2"><text x="60" y="70">Player</text><text x="180" y="70">Weapons</text><text x="300" y="70">Enemies</text><text x="420" y="70">Projectiles</text><text x="540" y="70">Pickups</text><text x="660" y="70">Encounters</text><text x="780" y="70">Effects+HUD</text><text x="920" y="62">Camera · Render</text><text x="920" y="78" fill="#b9a984" font-size="11">bloom · ACES</text></g>
+      <g stroke="#ffc94a" stroke-width="1.5" marker-end="url(#ar2)"><path d="M110 65h18"/><path d="M230 65h18"/><path d="M350 65h18"/><path d="M470 65h18"/><path d="M590 65h18"/><path d="M710 65h18"/><path d="M830 65h18"/></g>
+      <text x="500" y="125" fill="#b9a984">dt clamped to 50 ms · deterministic Game.simulate(seconds) used by the test-suite</text>
+    </g>
+  </svg>
+  </div>
+</section>
+
+<section id="tech">
+  <h2>Technical notes</h2>
+  <details open><summary>Rendering</summary>
+    <ul>
+      <li>Three.js r186 WebGL renderer, HalfFloat MSAA×4 target → UnrealBloom → OutputPass (ACES filmic tone mapping, sRGB).</li>
+      <li>First-person weapons render in a second scene/camera pass with a depth clear, so guns never clip into walls.</li>
+      <li>Shader sky with sun disc, FBM clouds, stars and moon, plus a PMREM environment map baked from that sky per level for metal reflections.</li>
+      <li>One directional shadow map follows the player, texel-snapped to avoid shimmering. Pooled point lights (fixed count, so shaders never recompile) are used for muzzle flashes and explosions.</li>
+      <li>Level walls use world-space UVs merged into one mesh per material; static decor (pillars, statues, obelisks…) is merged at load, taking an empty arena to ~125 visible objects.</li>
+      <li>Particles: two GPU point pools (additive fire/sparks, alpha blood/smoke) with swap-remove simulation, plus a pooled gib, decal and tracer system.</li>
+    </ul></details>
+  <details><summary>Procedural content</summary>
+    <ul>
+      <li><b>Textures</b>: tileable value-noise FBM painted into canvases with per-pixel height, converted to normal maps (sandstone blocks, carved hieroglyph friezes, cracked tiles, rippled sand, basalt, bark, palm fronds).</li>
+      <li><b>Models</b>: every enemy is a rig of primitives with named pivots animated procedurally (gait cycles, wing flaps, tail sway, recoil).</li>
+      <li><b>Audio</b>: 48 effects are synthesised once through <code>OfflineAudioContext</code> (formant-filtered kamikaze scream, distorted roars, gunshots, explosions), then played with distance attenuation and stereo panning and per-group voice limits.</li>
+      <li><b>Music</b>: a look-ahead Web Audio sequencer in the Hijaz / Phrygian-dominant scale that crossfades between ambient pads and a 148 BPM drum/bass/power-chord combat layer based on how many enemies are alive.</li>
+    </ul></details>
+  <details><summary>Physics &amp; AI</summary>
+    <ul>
+      <li>The world is a set of axis-aligned boxes in a 6 m spatial hash. Supported queries: cylinder push-out, ground height with step-up, ceiling checks and a DDA grid-walking ray cast.</li>
+      <li>Player movement is Quake-style (friction + wish-direction acceleration, sub-stepped collision at high speed).</li>
+      <li>Enemies steer toward/around the player, separate from each other, sidestep when blocked, hop onto ledges, lead their shots and respect line of sight.</li>
+      <li>Encounters spawn staggered waves in game time, clamp enemies to their arena bounds (so none can be lost outside), lock/unlock doors and save checkpoints.</li>
+    </ul></details>
+</section>
+
+<section id="tests">
+  <h2>Testing</h2>
+<pre>npm install          # dev deps: three, playwright
+npm test             # runs all three suites below
+node tests/unit.mjs          # collision / ray math (12 tests)
+node tests/smoke.mjs         # boots in headless Chromium, 15 scenarios, screenshots to test-results/
+node tests/playthrough.mjs   # a bot plays all 4 levels to completion + boss victory</pre>
+  <p>The playthrough bot aims, switches weapons and fires through the real weapon/projectile code, relocating when it loses line of sight.
+    It asserts every encounter triggers, every wave spawns, every door opens and every exit portal (or the boss victory) is reachable.
+    It already caught a mid-iteration crash when the boss died and a case where melee enemies couldn't reach a player standing on a platform.</p>
+</section>
+
+<section id="tuning">
+  <h2>Tuning cheatsheet</h2>
+  <div class="scroll"><table>
+    <tr><th>What</th><th>Where</th></tr>
+    <tr><td>Player speed / jump / gravity</td><td><code>src/player.js</code> → <code>PLAYER</code></td></tr>
+    <tr><td>Weapon damage, rate, spread, viewmodel pose</td><td><code>src/weapons.js</code> → <code>WEAPONS</code></td></tr>
+    <tr><td>Enemy HP, speed, hit spheres</td><td><code>src/enemies.js</code> → <code>ENEMY_DEFS</code></td></tr>
+    <tr><td>Level layouts, waves, pickups, themes</td><td><code>src/levels.js</code></td></tr>
+    <tr><td>Difficulty multipliers</td><td><code>src/game.js</code> → <code>DIFFICULTIES</code></td></tr>
+    <tr><td>Graphics presets</td><td><code>Game.applyQuality()</code> in <code>src/game.js</code></td></tr>
+  </table></div>
+</section>
+</main>
+<footer>SAM · an unofficial fan homage · code MIT · Three.js © its authors (MIT)</footer>
+</body>
+</html>

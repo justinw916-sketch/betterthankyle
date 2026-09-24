@@ -14,7 +14,7 @@ export const WEAPONS = [
   { id: 'shotgun', key: 'Digit3', name: 'Pump Shotgun', short: 'Shotgun', hands: [[0, -0.05, 0.13], [0, -0.03, -0.2]], ammo: 'shells', use: 1, rate: 0.9, dmg: 11, pellets: 8, spread: 0.055, pos: [0.2, -0.25, -0.44], rot: [0, 0.06, 0], give: 10 },
   { id: 'dshotgun', key: 'Digit4', name: 'Double Coach Gun', short: 'Double', hands: [[0, -0.06, 0.13], [0, -0.03, -0.2]], ammo: 'shells', use: 2, rate: 1.25, dmg: 11, pellets: 18, spread: 0.1, pos: [0.2, -0.255, -0.44], rot: [0, 0.06, 0], give: 20 },
   { id: 'tommy', key: 'Digit5', name: 'Tommygun', short: 'Tommy', hands: [[0, -0.09, 0.06], [0, -0.09, -0.26]], ammo: 'bullets', use: 1, rate: 0.095, dmg: 12, spread: 0.018, pos: [0.2, -0.25, -0.46], rot: [0, 0.06, 0], give: 50 },
-  { id: 'minigun', key: 'Digit6', name: 'XM-214 Minigun', short: 'Minigun', hands: [[0, 0.13, 0.05], [0.02, -0.08, 0.16]], ammo: 'bullets', use: 1, rate: 0.05, dmg: 12, spread: 0.032, pos: [0.23, -0.29, -0.52], rot: [0, 0.06, 0], give: 100 },
+  { id: 'minigun', key: 'Digit6', name: 'XM-214 Minigun', short: 'Minigun', hands: [[0.1, -0.05, 0.14], [-0.1, -0.06, 0.02]], ammo: 'bullets', use: 1, rate: 0.05, dmg: 12, spread: 0.032, pos: [0.23, -0.29, -0.52], rot: [0, 0.06, 0], give: 100 },
   { id: 'rocket', key: 'Digit7', name: 'Rocket Launcher', short: 'Rocket', hands: [[0, -0.12, 0.05], [0, -0.08, -0.25]], ammo: 'rockets', use: 1, rate: 0.62, proj: 'rocket', pos: [0.25, -0.25, -0.62], rot: [0, 0.07, 0], give: 5 },
   { id: 'grenade', key: 'Digit8', name: 'Grenade Launcher', short: 'Grenade', hands: [[0, -0.15, 0.12], [0, -0.08, -0.22]], ammo: 'grenades', use: 1, rate: 0.7, proj: 'grenade', pos: [0.24, -0.27, -0.52], rot: [0, 0.07, 0], give: 5 },
   { id: 'laser', key: 'Digit9', name: 'XL2 Laser Gun', short: 'Laser', hands: [[0, -0.12, 0.05], [0, -0.07, -0.2]], ammo: 'cells', use: 1, rate: 0.085, proj: 'laser', pos: [0.22, -0.25, -0.52], rot: [0, 0.06, 0], give: 50 },
@@ -298,6 +298,17 @@ export class Weapons {
     }
     this.kick += kick; this.kickRot += kickRot;
     game.player.pitch += camKick * (0.7 + Math.random() * 0.6);
+    // eject brass (bullets) / red hulls (shells) to the right
+    if (w.id === 'tommy' || w.id === 'minigun' || w.id === 'shotgun' || w.id === 'dshotgun') {
+      const shell = w.ammo === 'shells';
+      const n = w.id === 'dshotgun' ? 2 : 1;
+      for (let i = 0; i < n; i++) {
+        const ex = o.x + d.x * 0.35 + r.x * 0.22 - u.x * 0.12, ey = o.y + d.y * 0.35 + r.y * 0.22 - u.y * 0.12, ez = o.z + d.z * 0.35 + r.z * 0.22 - u.z * 0.12;
+        const sp = 2.5 + Math.random() * 1.5;
+        const c = shell ? [0.7, 0.08, 0.05] : [0.85, 0.62, 0.2];
+        game.effects.alpha.spawn(ex, ey, ez, r.x * sp + u.x * 2, r.y * sp + 2.2, r.z * sp + u.z * 2, 0.9, shell ? 0.07 : 0.045, shell ? 0.07 : 0.045, c[0], c[1], c[2], c[0], c[1], c[2], 1, 16, 0.5);
+      }
+    }
     if (flash) {
       game.effects.flash(muzzle.x, muzzle.y, muzzle.z, flashCol, 12, 8, 0.06);
       this.flashLight.intensity = 3; this.flashLight.color.set(flashCol);
@@ -367,7 +378,7 @@ export class Weapons {
     }
     if (w.id === 'laser') {
       // laser glows pulse
-      list[0].group.children.forEach((c) => { if (c.material && c.material.emissiveIntensity !== undefined && c.material.emissive && c.material.emissive.g > 0.5) c.material.emissiveIntensity = 2.5 + Math.sin(performance.now() * 0.01) * 0.8; });
+      list[0].group.children.forEach((c) => { if (c.material && c.material.emissive && c.material.emissive.g > 0.5) c.material.emissiveIntensity = 1.1 + Math.sin(performance.now() * 0.01) * 0.35; });
     }
   }
 

@@ -16,6 +16,8 @@ export const ENEMY_DEFS = {
   boss: { name: 'The Colossus', hp: 14000, speed: 4.2, r: 5.2, h: 22, scale: 1.6, score: 10000, spheres: [[9, 2.6], [12.3, 1.5], [6.2, 2.4], [3.5, 1.6]], blood: [0.7, 0.6, 0.45], gib: ['stone'], pain: 'mech', bloodless: true, boss: true },
 };
 
+const FLASH = new THREE.MeshBasicMaterial({ color: 0xffd0c0 });
+
 class Enemy {
   constructor(mgr, type, x, y, z, opts) {
     this.mgr = mgr; this.game = mgr.game;
@@ -50,7 +52,9 @@ class Enemy {
     this.burst = 0; this.burstT = 0;
     this.alt = rand(5, 8);
     this.summonCount = 0;
-    this.root.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+    this.meshes = [];
+    this.root.traverse((o) => { if (o.isMesh) { o.castShadow = true; this.meshes.push(o); o.userData.mat = o.material; } });
+    this.flashT = 0;
     this.root.rotation.y = this.yaw;
     this.root.scale.setScalar(0.01);
     if (this.def.fly) this.pos.y = y + this.alt;
@@ -68,9 +72,16 @@ class Enemy {
     return out;
   }
 
+  // brief bright flash so every hit reads clearly
+  hitFlash() {
+    if (this.flashT <= 0) for (const m of this.meshes) if (!m.material.isMeshBasicMaterial || m.material === FLASH) m.material = FLASH;
+    this.flashT = 0.06;
+  }
+
   damage(amount, dir, kind = 'bullet') {
     if (!this.alive) return;
     this.hp -= amount;
+    if (!this.def.boss || amount >= 60) this.hitFlash();
     this.mgr.onHit(this);
     if (this.hp <= 0) { this.die(kind, amount); return; }
     if (this.def.hp < 150 && amount >= 8) this.painT = Math.max(this.painT, this.def.boss ? 0 : 0.18);
@@ -125,6 +136,10 @@ class Enemy {
   update(dt) {
     const game = this.game;
     this.t += dt;
+    if (this.flashT > 0) {
+      this.flashT -= dt;
+      if (this.flashT <= 0) for (const m of this.meshes) m.material = m.userData.mat;
+    }
     if (this.spawnT > 0) {
       this.spawnT -= dt;
       this.root.scale.setScalar(this.def.boss ? this.def.scale : clamp(1 - this.spawnT / 0.35, 0.01, 1));
@@ -491,6 +506,7 @@ class Enemy {
         r.armR.rotation.x += (aim - r.armR.rotation.x) * Math.min(1, dt * 4);
         r.elbowL.rotation.x = 0; r.elbowR.rotation.x = 0;
         r.head.rotation.y = Math.sin(this.t * 0.7) * 0.15;
+        r.core.scale.setScalar(1 + Math.sin(this.t * (this.hp < this.maxHp * 0.5 ? 9 : 4)) * 0.15);
         break;
       }
     }
