@@ -225,7 +225,7 @@ export class Projectiles {
       const big = p.type === 'cannonball' || p.type === 'bossfire';
       const sc = p.type === 'cannonball' ? 1.6 : p.type === 'bossfire' ? 1.4 : p.type === 'mrocket' ? 0.8 : 1;
       game.explode(p.pos.x, p.pos.y, p.pos.z, p.radius || (p.owner === 'enemy' ? 3.5 : 5), p.splash || p.dmg * 0.6, p.owner, sc, directHit, hitPlayer);
-      game.audio.play(big ? 'bigexplosion' : 'explosion', { pos: p.pos, range: 40 });
+      game.audio.play(big ? 'bigexplosion' : 'explosion', { pos: p.pos, range: 40, group: 'boom', maxVoices: 8 });
     }
   }
 

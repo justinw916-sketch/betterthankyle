@@ -13,6 +13,7 @@ export const ENEMY_DEFS = {
   arachnid: { name: 'Arachnid Soldier', hp: 500, speed: 3.2, r: 1.6, h: 3.3, score: 250, spheres: [[1.4, 0.95, 0.6], [1.4, 0.8, 1.4], [2.3, 0.62, -0.6], [3.0, 0.35, -0.6]], blood: [0.3, 0.6, 0.1], gib: ['green', 'flesh'], pain: 'mech' },
   harpy: { name: 'Winged Harpy', hp: 40, speed: 10, r: 0.6, h: 1.2, score: 30, fly: true, spheres: [[0.1, 0.55]], blood: [0.55, 0.02, 0.02], gib: ['flesh'], pain: 'harpy' },
   biomech: { name: 'Biomechanoid', hp: 700, speed: 2.8, r: 1.3, h: 4.6, score: 400, spheres: [[3.4, 1.0], [2.4, 0.9], [1.2, 0.65]], blood: [0.3, 0.3, 0.35], gib: ['metal', 'flesh'], pain: 'mech', bloodless: true },
+  ra: { name: 'Ra, the Sun Colossus', model: 'boss', variant: 'ra', hp: 22000, speed: 4.6, r: 5.2, h: 22, scale: 1.6, score: 20000, spheres: [[9, 2.6], [12.3, 1.5], [6.2, 2.4], [3.5, 1.6]], blood: [1, 0.8, 0.3], gib: ['stone', 'metal'], pain: 'mech', bloodless: true, boss: true },
   boss: { name: 'The Colossus', hp: 14000, speed: 4.2, r: 5.2, h: 22, scale: 1.6, score: 10000, spheres: [[9, 2.6], [12.3, 1.5], [6.2, 2.4], [3.5, 1.6]], blood: [0.7, 0.6, 0.45], gib: ['stone'], pain: 'mech', bloodless: true, boss: true },
 };
 
@@ -23,7 +24,7 @@ class Enemy {
     this.mgr = mgr; this.game = mgr.game;
     this.type = type;
     this.def = ENEMY_DEFS[type];
-    const model = makeEnemyModel(type);
+    const model = makeEnemyModel(ENEMY_DEFS[type].model || type, ENEMY_DEFS[type].variant);
     this.root = model.root; this.rig = model.rig;
     this.root.position.set(x, y, z);
     this.pos = this.root.position;
@@ -33,7 +34,8 @@ class Enemy {
     this.hp = this.maxHp;
     this.alive = true;
     this.encounter = opts.encounter || null;
-    this.bounds = opts.bounds || null; // [minX, minZ, maxX, maxZ] enemies may never leave
+    this.bounds = opts.bounds || null;
+    this.floorY = opts.floorY || 0; // [minX, minZ, maxX, maxZ] enemies may never leave
     this.onGround = !this.def.fly;
     this.phase = rand(0, 10);
     this.t = 0;
@@ -109,7 +111,7 @@ class Enemy {
     if (this.type === 'kamikaze') {
       // detonates regardless of how it died
       game.explode(p.x, p.y + 1, p.z, 4.2, 40, selfDestruct ? 'enemy' : 'kamikaze', 1);
-      game.audio.play('explosion', { pos: p, range: 40 });
+      game.audio.play('explosion', { pos: p, range: 40, group: 'boom', maxVoices: 8 });
     }
     if (this.def.boss) {
       this.state = 'dying'; this.deadT = 0;
@@ -322,6 +324,7 @@ class Enemy {
         if (this.stepT <= 0) { this.stepT = 0.9; game.audio.play('stomp', { pos: this.pos, vol: 0.5, range: 25 }); if (dist < 25) game.effects.addShake(0.05); }
         break;
       }
+      case 'ra':
       case 'boss': this.bossAI(dt, dist, toX, toZ, toYaw); face = toYaw; turn = 0.8;
         if (this.state === 'walk') { mx = toX; mz = toZ; } else speed = 0;
         break;
@@ -494,6 +497,7 @@ class Enemy {
         r.armL.rotation.x = 0.6 + (this.fireAnim > 0 ? 0.4 : 0); r.armR.rotation.x = 0.6 + (this.fireAnim > 0 ? 0.4 : 0);
         break;
       }
+      case 'ra':
       case 'boss': {
         const kk = this.state === 'walk' ? 1 : 0;
         r.hipL.rotation.x = s * 0.35 * kk; r.hipR.rotation.x = -s * 0.35 * kk;
@@ -507,6 +511,7 @@ class Enemy {
         r.elbowL.rotation.x = 0; r.elbowR.rotation.x = 0;
         r.head.rotation.y = Math.sin(this.t * 0.7) * 0.15;
         r.core.scale.setScalar(1 + Math.sin(this.t * (this.hp < this.maxHp * 0.5 ? 9 : 4)) * 0.15);
+        if (r.sunDisc) r.sunDisc.material.opacity = 0.45 + Math.sin(this.t * 3) * 0.15;
         break;
       }
     }
@@ -521,10 +526,11 @@ class Enemy {
       if (dist < 30) this.stateT -= dt * 2;
       if (this.stateT <= 0) {
         const opts = ['volley', 'barrage', 'volley', 'summon'];
+        if (this.def.variant === 'ra') opts.push('nova', 'nova');
         if (dist < 34) opts.push('stomp', 'stomp');
         this.state = pick(opts);
         if (this.state === 'summon' && this.mgr.list.filter((e) => e.alive && e.summoned).length > 16) this.state = 'barrage';
-        this.stateT = { volley: 2.4, barrage: 3.2, summon: 2.2, stomp: 1.4 }[this.state];
+        this.stateT = { volley: 2.4, barrage: 3.2, summon: 2.2, stomp: 1.4, nova: 2.6 }[this.state];
         this.shots = 0; this.shotT = 0.4;
         game.audio.play('bossroar', { pos: this.pos, range: 120, vol: 1 });
       }
@@ -538,6 +544,18 @@ class Enemy {
         for (let i = -2; i <= 2; i++) this.shoot('bossfire', m, 20, 25, i * 0.14 + (ci ? 0.07 : -0.07), { splash: 20, radius: 4 });
       });
       game.effects.flash(this.pos.x, this.pos.y + 8, this.pos.z, 0xff5511, 60, 30, 0.3);
+    }
+    // Ra's sun nova: rings of fireballs radiating from the core
+    if (this.state === 'nova' && this.shotT <= 0 && this.shots < 3) {
+      this.shots++; this.shotT = 0.7;
+      const c = this.rig.core.getWorldPosition(new THREE.Vector3());
+      const n = enraged ? 22 : 16;
+      for (let i = 0; i < n; i++) {
+        const a = (i / n) * Math.PI * 2 + this.shots * 0.2;
+        game.projectiles.spawn('bossfire', c, { x: Math.cos(a) * 17, y: -4.5, z: Math.sin(a) * 17 }, 'enemy', { dmg: 22, splash: 15, radius: 3.5, source: this });
+      }
+      game.effects.flash(c.x, c.y, c.z, 0xffaa33, 90, 45, 0.4);
+      game.audio.play('enemyfire', { pos: c, vol: 1, range: 80 });
     }
     if (this.state === 'barrage' && this.shotT <= 0) {
       this.shots++; this.shotT = enraged ? 0.14 : 0.22;
@@ -563,7 +581,7 @@ class Enemy {
       for (let i = 0; i < n; i++) {
         const a = (i / n) * Math.PI * 2;
         const type = i % 4 === 3 ? 'harpy' : enraged && i % 3 === 0 ? 'gnasher' : 'kamikaze';
-        const e = this.mgr.spawnSafe(type, this.pos.x + Math.cos(a) * 12, this.pos.z + Math.sin(a) * 12, 4, { encounter: this.encounter, bounds: this.bounds });
+        const e = this.mgr.spawnSafe(type, this.pos.x + Math.cos(a) * 12, this.pos.z + Math.sin(a) * 12, 4, { encounter: this.encounter, bounds: this.bounds, floorY: this.floorY });
         if (e) e.summoned = true;
       }
       game.audio.play('spawn', { vol: 1 });
@@ -626,7 +644,8 @@ export class EnemyManager {
   get alive() { let n = 0; for (const e of this.list) if (e.alive) n++; return n; }
 
   spawn(type, x, z, opts = {}) {
-    const y = this.game.world.groundHeight(x, z, ENEMY_DEFS[type].r, 50, 50);
+    // stand on the arena floor (or a low platform up to 3.2 m above it), never on pillar tops
+    const y = this.game.world.groundHeight(x, z, ENEMY_DEFS[type].r, (opts.floorY || 0) + 3.2, 0);
     const e = new Enemy(this, type, x, y, z, opts);
     this.list.push(e);
     this.group.add(e.root);
@@ -645,7 +664,9 @@ export class EnemyManager {
     const ok = (px, pz) => {
       if (B && (px < B[0] + def.r || px > B[2] - def.r || pz < B[1] + def.r || pz > B[3] - def.r)) return false;
       let bad = false;
-      w.query(px - def.r - 0.3, pz - def.r - 0.3, px + def.r + 0.3, pz + def.r + 0.3, (b) => { if (b.maxY > 3.1) bad = true; });
+      const fy = opts.floorY || 0;
+      w.query(px - def.r - 0.3, pz - def.r - 0.3, px + def.r + 0.3, pz + def.r + 0.3, (b) => { if (b.maxY > fy + 3.1 && b.minY < fy + 3) bad = true; });
+      if (!bad && w.floor === -Infinity && w.groundHeight(px, pz, 0.1, fy + 3.2, 0) < fy - 1) bad = true; // no floor here (sky level)
       return !bad;
     };
     for (let tries = 0; tries < 30; tries++) {
@@ -663,7 +684,13 @@ export class EnemyManager {
 
   update(dt) {
     const list = this.list;
-    for (const e of list) e.update(dt);
+    for (const e of list) {
+      e.update(dt);
+      // stability guards: corrupted positions or enemies that fell out of the world
+      if (e.alive && (!Number.isFinite(e.pos.x) || !Number.isFinite(e.pos.y) || !Number.isFinite(e.pos.z) || e.pos.y < -40)) {
+        e.alive = false; e.remove = true; this.onDeath(e, true);
+      }
+    }
     // separation so hordes don't collapse into one point
     for (let i = 0; i < list.length; i++) {
       const a = list[i];

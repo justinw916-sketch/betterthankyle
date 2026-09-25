@@ -94,7 +94,7 @@ function humanoid(o) {
   return { root, rig: r };
 }
 
-export function makeEnemyModel(type) {
+export function makeEnemyModel(type, variant = null) {
   const M = mats();
   const G = getMaterials();
   switch (type) {
@@ -329,7 +329,8 @@ export function makeEnemyModel(type) {
       const root = new THREE.Group();
       const body = pivot(root);
       const r = { body };
-      const stone = G.basalt, trim = G.gold;
+      const ra = variant === 'ra';
+      const stone = ra ? G.gold : G.basalt, trim = ra ? G.basalt : G.gold;
       for (const side of [-1, 1]) {
         const hip = pivot(body, side * 1.6, 6, 0);
         part(box(1.4, 3.2, 1.5), stone, 0, -1.5, 0, hip);
@@ -355,6 +356,12 @@ export function makeEnemyModel(type) {
       }
       part(cone(0.25, 0.7, 4), trim, 0, 2.4, -0.7, head).rotation.x = -0.3; // uraeus cobra
       part(box(0.35, 0.9, 0.3), trim, 0, -0.3, -0.7, head); // beard
+      if (ra) {
+        // blazing sun disc crowning Ra's head
+        const disc = part(new THREE.TorusGeometry(2.2, 0.35, 10, 32), M.glowOrange, 0, 3.6, 0.6, head, false);
+        disc.rotation.y = 0;
+        r.sunDisc = part(new THREE.CircleGeometry(2.0, 32), new THREE.MeshBasicMaterial({ color: 0xffaa33, transparent: true, opacity: 0.55, side: THREE.DoubleSide }), 0, 3.6, 0.62, head, false);
+      }
       r.cannons = [];
       for (const s of [-1, 1]) {
         const sh = pivot(torso, s * 2.4, 4.2, 0);
@@ -533,8 +540,14 @@ export function makePickupModel(kind, sub) {
     w.group.rotation.y = Math.PI / 2;
     w.group.traverse((o) => { o.castShadow = true; });
     g.add(w.group);
+  } else if (kind === 'powerup' && sub === 'bomb') {
+    // Serious Bomb: black sphere, gold band, glowing fuse
+    P(sph(0.36, 16, 12), new THREE.MeshStandardMaterial({ color: 0x111114, roughness: 0.3, metalness: 0.6 }), 0, 0, 0);
+    const band = P(new THREE.TorusGeometry(0.37, 0.05, 8, 24), G.gold, 0, 0, 0); band.rotation.x = Math.PI / 2;
+    P(cyl(0.06, 0.06, 0.18, 8), G.gold, 0, 0.4, 0);
+    P(sph(0.08, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffdd66 }), 0, 0.52, 0);
   } else if (kind === 'powerup') {
-    const col = sub === 'damage' ? 0xff2244 : 0xffcc33;
+    const col = { damage: 0xff2244, protect: 0xffcc33, speed: 0x33ddff }[sub] || 0xffcc33;
     const mat = new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 2.5, roughness: 0.2, flatShading: true });
     P(new THREE.IcosahedronGeometry(0.4, 0), mat, 0, 0, 0);
     const halo = new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.25, blending: THREE.AdditiveBlending, depthWrite: false });

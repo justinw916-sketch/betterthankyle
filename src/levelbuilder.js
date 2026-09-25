@@ -27,6 +27,8 @@ export class LevelBuilder {
     this.spawn = { x: 0, z: 0, yaw: 0 };
     this.rng = mulberry32(def.seed || 1234);
     this.lightBudget = 8;
+    this.lavas = [];     // hazard rectangles {x0,z0,x1,z1,y}
+    this.jumpPads = [];  // {x,y,z,vx,vy,vz}
   }
 
   // Solid box (collision + render)
@@ -158,35 +160,39 @@ export class LevelBuilder {
   }
 
   // --- set dressing -------------------------------------------------------
-  pillar(x, z, h = 8, r = 0.9, broken = false) {
+  pillar(x, z, h = 8, r = 0.9, broken = false, y0 = 0) {
     const M = this.M;
     const ph = broken ? h * (0.3 + this.rng() * 0.4) : h;
-    const col = part(cyl(r, r * 1.05, ph, 14), M.sandstone, x, ph / 2 + 0.5, z, this.group);
+    const col = part(cyl(r, r * 1.05, ph, 14), M.sandstone, x, y0 + ph / 2 + 0.5, z, this.group);
     col.receiveShadow = true;
-    part(box(r * 2.6, 0.5, r * 2.6), M.sandstoneDark, x, 0.25, z, this.group).receiveShadow = true;
+    part(box(r * 2.6, 0.5, r * 2.6), M.sandstoneDark, x, y0 + 0.25, z, this.group).receiveShadow = true;
     if (!broken) {
-      const cap = part(cyl(r * 1.6, r, 0.9, 14), M.gold, x, ph + 0.95, z, this.group);
+      const cap = part(cyl(r * 1.6, r, 0.9, 14), M.gold, x, y0 + ph + 0.95, z, this.group);
       cap.receiveShadow = true;
-      part(box(r * 3.2, 0.5, r * 3.2), M.sandstoneDark, x, ph + 1.65, z, this.group);
+      part(box(r * 3.2, 0.5, r * 3.2), M.sandstoneDark, x, y0 + ph + 1.65, z, this.group);
     } else {
-      const chunk = part(cyl(r, r, 1.2, 14), M.sandstone, x + 1.6, r, z + 0.8, this.group);
+      const chunk = part(cyl(r, r, 1.2, 14), M.sandstone, x + 1.6, y0 + r, z + 0.8, this.group);
       chunk.rotation.z = Math.PI / 2; chunk.rotation.y = this.rng() * 3;
     }
-    this.world.add({ minX: x - r, minY: 0, minZ: z - r, maxX: x + r, maxY: ph + 2, maxZ: z + r });
+    this.world.add({ minX: x - r, minY: y0, minZ: z - r, maxX: x + r, maxY: y0 + ph + 2, maxZ: z + r });
   }
 
-  obelisk(x, z, h = 12) {
+  pillarAt(x, z, y0, h = 8, r = 0.9) { this.pillar(x, z, h, r, false, y0); }
+
+  obelisk(x, z, h = 12, y0 = 0) {
     const M = this.M;
-    part(box(3, 1, 3), M.sandstoneDark, x, 0.5, z, this.group).receiveShadow = true;
+    part(box(3, 1, 3), M.sandstoneDark, x, y0 + 0.5, z, this.group).receiveShadow = true;
     const g = new THREE.CylinderGeometry(0.55, 1.0, h, 4, 1);
     g.rotateY(Math.PI / 4);
-    const o = part(g, M.hieroglyph, x, h / 2 + 1, z, this.group);
+    const o = part(g, M.hieroglyph, x, y0 + h / 2 + 1, z, this.group);
     o.receiveShadow = true;
     const tip = new THREE.ConeGeometry(0.78, 1.4, 4); tip.rotateY(Math.PI / 4);
-    part(tip, M.gold, x, h + 1.7, z, this.group);
-    this.world.add({ minX: x - 1.5, minY: 0, minZ: z - 1.5, maxX: x + 1.5, maxY: 1, maxZ: z + 1.5 });
-    this.world.add({ minX: x - 0.9, minY: 0, minZ: z - 0.9, maxX: x + 0.9, maxY: h + 2, maxZ: z + 0.9 });
+    part(tip, M.gold, x, y0 + h + 1.7, z, this.group);
+    this.world.add({ minX: x - 1.5, minY: y0, minZ: z - 1.5, maxX: x + 1.5, maxY: y0 + 1, maxZ: z + 1.5 });
+    this.world.add({ minX: x - 0.9, minY: y0, minZ: z - 0.9, maxX: x + 0.9, maxY: y0 + h + 2, maxZ: z + 0.9 });
   }
+
+  obeliskAt(x, z, y0, h = 12) { this.obelisk(x, z, h, y0); }
 
   palm(x, z, h = 7 + this.rng() * 4, collide = true) {
     const M = this.M;
@@ -259,13 +265,15 @@ export class LevelBuilder {
   }
 
   // Torch/brazier with flickering flame; a limited number get real lights.
-  brazier(x, z, y = 0, withLight = true) {
+  brazierAt(x, z, base, withLight = true) { this.brazier(x, z, 0, withLight, base); }
+
+  brazier(x, z, y = 0, withLight = true, base = 0) {
     const M = this.M;
     if (y === 0) {
-      part(cyl(0.15, 0.25, 1.4, 8), M.darkmetal, x, 0.7, z, this.group);
-      this.world.add({ minX: x - 0.35, minY: 0, minZ: z - 0.35, maxX: x + 0.35, maxY: 1.6, maxZ: z + 0.35 });
+      part(cyl(0.15, 0.25, 1.4, 8), M.darkmetal, x, base + 0.7, z, this.group);
+      this.world.add({ minX: x - 0.35, minY: base, minZ: z - 0.35, maxX: x + 0.35, maxY: base + 1.6, maxZ: z + 0.35 });
     }
-    const top = y === 0 ? 1.4 : y;
+    const top = y === 0 ? base + 1.4 : y;
     part(cyl(0.45, 0.2, 0.35, 10), M.gold, x, top + 0.15, z, this.group);
     const mat = new THREE.SpriteMaterial({ map: M._sprites.flame, color: 0xffffff, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true });
     const fl = new THREE.Sprite(mat); fl.position.set(x, top + 0.8, z); fl.scale.set(1.1, 1.6, 1);
@@ -290,7 +298,7 @@ export class LevelBuilder {
       g.rotateY(Math.PI / 4);
       const uv = g.attributes.uv;
       for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * s / 6, uv.getY(i) * s / 8);
-      const p = new THREE.Mesh(g, opts.night ? M.basalt : M.sandstone);
+      const p = new THREE.Mesh(g, opts.night || opts.inferno ? M.basalt : M.sandstone);
       p.userData.noMerge = true;
       p.position.set(x, s * 0.425 - 1, z);
       this.group.add(p);
@@ -315,7 +323,7 @@ export class LevelBuilder {
     dg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
     dg.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
     dg.setIndex(idx); dg.computeVertexNormals();
-    const dunes = new THREE.Mesh(dg, M.sand);
+    const dunes = new THREE.Mesh(dg, opts.inferno ? M.basalt : M.sand);
     dunes.userData.noMerge = true;
     dunes.receiveShadow = false;
     this.group.add(dunes);
@@ -323,12 +331,129 @@ export class LevelBuilder {
     const gg = new THREE.PlaneGeometry(1000, 1000).rotateX(-Math.PI / 2);
     const uv = gg.attributes.uv;
     for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * 1000 / 12, uv.getY(i) * 1000 / 12);
-    const ground = new THREE.Mesh(gg, M.sand);
+    const ground = new THREE.Mesh(gg, opts.inferno ? M.basalt : M.sand);
     ground.userData.noMerge = true;
     ground.position.y = -0.03;
     ground.receiveShadow = true;
     this.group.add(ground);
   }
+
+  // Sky level backdrop: layered cloud sea far below and drifting rock islets.
+  skyScenery() {
+    const M = this.M;
+    for (const [y, s, o] of [[-45, 1400, 0.95], [-80, 1800, 0.8]]) {
+      const g = new THREE.PlaneGeometry(s, s).rotateX(-Math.PI / 2);
+      const uv = g.attributes.uv;
+      for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * s / 160, uv.getY(i) * s / 160);
+      const m = new THREE.Mesh(g, M.cloud.clone());
+      m.material.opacity = o;
+      m.position.y = y;
+      m.userData.noMerge = true; m.userData.clouds = true;
+      this.group.add(m);
+      this.animated.push({ type: 'clouds', obj: m, phase: y });
+    }
+    const rng = mulberry32(7);
+    for (let i = 0; i < 26; i++) {
+      const a = rng() * Math.PI * 2, r = 180 + rng() * 380;
+      const s = 6 + rng() * 22;
+      const x = Math.cos(a) * r, z = Math.sin(a) * r - 100, y = -20 + rng() * 60;
+      const top = new THREE.Mesh(new THREE.CylinderGeometry(s, s * 0.9, s * 0.35, 7), M.sandstone);
+      top.position.set(x, y, z);
+      const under = new THREE.Mesh(new THREE.ConeGeometry(s * 0.9, s * 1.6, 7), M.sandstoneDark);
+      under.rotation.x = Math.PI; under.position.set(x, y - s * 0.97, z);
+      top.userData.noMerge = under.userData.noMerge = true;
+      this.group.add(top, under);
+    }
+  }
+
+  // Floating island: a slab of stone whose walkable top is at `top`, with hanging rock underneath
+  // and low parapets along the edges (gaps: {n,s,e,w: [[center,width]]}).
+  island(x0, z0, x1, z1, top = 0, { gaps = {}, parapet = 1.1, floor = this.M.tiles } = {}) {
+    const M = this.M;
+    this.solid(x0, top - 7, z0, x1, top - 0.01, z1, M.sandstoneDark);
+    this.visual(x0 - 0.05, top - 0.2, z0 - 0.05, x1 + 0.05, top, z1 + 0.05, floor);
+    this.world.add({ minX: x0, minY: top - 0.2, minZ: z0, maxX: x1, maxY: top, maxZ: z1 });
+    // hanging rocks
+    const w = x1 - x0, d = z1 - z0;
+    for (let i = 0; i < 5; i++) {
+      const r = Math.min(w, d) * (0.22 - i * 0.025);
+      const cx = x0 + w * (0.3 + this.rng() * 0.4), cz = z0 + d * (0.3 + this.rng() * 0.4);
+      const c = part(cone(r, r * 2.6, 7), M.sandstoneDark, cx, top - 7 - r * 1.2, cz, this.group);
+      c.rotation.x = Math.PI;
+    }
+    if (parapet > 0) {
+      const t = 0.8;
+      const seg = (a0, a1, list, make) => {
+        let segs = [[a0, a1]];
+        for (const [c, gw] of list || []) segs = segs.flatMap(([a, b]) => (c + gw / 2 <= a || c - gw / 2 >= b) ? [[a, b]] : [[a, c - gw / 2], [c + gw / 2, b]].filter(([p, q]) => q - p > 0.05));
+        for (const [a, b] of segs) make(a, b);
+      };
+      seg(x0, x1, gaps.n, (a, b) => this.solid(a, top, z0, b, top + parapet, z0 + t, M.sandstone));
+      seg(x0, x1, gaps.s, (a, b) => this.solid(a, top, z1 - t, b, top + parapet, z1, M.sandstone));
+      seg(z0, z1, gaps.w, (a, b) => this.solid(x0, top, a, x0 + t, top + parapet, b, M.sandstone));
+      seg(z0, z1, gaps.e, (a, b) => this.solid(x1 - t, top, a, x1, top + parapet, b, M.sandstone));
+    }
+  }
+
+  // Narrow stone walkway (no rails!) between islands.
+  bridge(x0, z0, x1, z1, top = 0) {
+    this.solid(x0, top - 0.8, z0, x1, top - 0.01, z1, this.M.sandstoneDark);
+    this.visual(x0, top - 0.2, z0, x1, top, z1, this.M.tiles);
+    this.world.add({ minX: x0, minY: top - 0.2, minZ: z0, maxX: x1, maxY: top, maxZ: z1 });
+  }
+
+  // Molten lava pool: glowing, scrolling surface that burns anything standing in it.
+  lava(x0, z0, x1, z1, y = 0) {
+    const g = new THREE.PlaneGeometry(x1 - x0, z1 - z0).rotateX(-Math.PI / 2);
+    const uv = g.attributes.uv;
+    for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * (x1 - x0) / 8, uv.getY(i) * (z1 - z0) / 8);
+    const m = new THREE.Mesh(g, this.M.lava);
+    m.position.set((x0 + x1) / 2, y + 0.04, (z0 + z1) / 2);
+    m.userData.noMerge = true;
+    this.group.add(m);
+    // dark rim so the pool reads as sunken
+    this.visual(x0 - 0.4, -0.3, z0 - 0.4, x1 + 0.4, 0.02, z0, this.M.basalt);
+    this.visual(x0 - 0.4, -0.3, z1, x1 + 0.4, 0.02, z1 + 0.4, this.M.basalt);
+    this.lavas.push({ x0, z0, x1, z1, y });
+    if (this.lightBudget > 0) {
+      this.lightBudget--;
+      const l = new THREE.PointLight(0xff5511, 25, Math.max(x1 - x0, z1 - z0) * 0.9 + 6, 1.4);
+      l.position.set((x0 + x1) / 2, y + 2, (z0 + z1) / 2);
+      this.group.add(l);
+      this.torches.push({ sprite: null, light: l, phase: this.rng() * 10, base: 25 });
+    }
+  }
+
+  // Launch pad: throws the player in a ballistic arc to the target point.
+  jumpPad(x, z, y, tx, tz, ty) {
+    const G = 24;
+    const dx = tx - x, dz = tz - z, dy = ty - y;
+    const dist = Math.hypot(dx, dz);
+    const T = Math.max(0.9, Math.min(1.8, dist / 13));
+    const pad = { x, y, z, vx: dx / T, vz: dz / T, vy: (dy + 0.5 * G * T * T) / T };
+    this.jumpPads.push(pad);
+    const g = new THREE.Group();
+    g.position.set(x, y, z);
+    const base = part(cyl(1.4, 1.6, 0.25, 20), this.M.gold, 0, 0.12, 0, g);
+    base.receiveShadow = true;
+    const glow = new THREE.Mesh(new THREE.CircleGeometry(1.1, 24).rotateX(-Math.PI / 2),
+      new THREE.MeshBasicMaterial({ color: 0x66ddff, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending, depthWrite: false }));
+    glow.position.y = 0.27;
+    g.add(glow);
+    g.userData.dynamic = true;
+    this.group.add(g);
+    pad.glow = glow;
+    this.world.add({ minX: x - 1.4, minY: y, minZ: z - 1.4, maxX: x + 1.4, maxY: y + 0.25, maxZ: z + 1.4 });
+  }
+
+  // Hidden area: entering the zone counts a secret; a reward pickup waits there.
+  secret(x, z, reward, y = 0, r = 2.5) {
+    this.secrets.push({ x, z, y, r });
+    if (reward) this.pickup(reward[0], reward[1], x, z, y);
+  }
+
+  // Low cover wall (sandbags / rubble) the player can crouch-strafe behind.
+  cover(cx, cz, w, d, h = 1.3, mat = this.M.sandstoneDark, y0 = 0) { this.block(cx, cz, w, d, h, mat, y0); }
 
   pickup(kind, sub, x, z, y = 0) { this.pickups.push({ kind, sub, x, y, z }); }
 

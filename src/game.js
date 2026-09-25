@@ -31,6 +31,7 @@ export const DIFFICULTIES = [
   { id: 'serious', name: 'Serious', hp: 1.5, dmg: 1.8 },
 ];
 
+const MAX_ALIVE = 90;
 const DEFAULT_SETTINGS = { sensitivity: 1.0, invertY: false, fov: 90, quality: 'high', volume: 0.8, music: 0.55, difficulty: 2, showFps: false };
 
 const SKY_VERT = /* glsl */`
@@ -84,7 +85,7 @@ export class Game {
     try { this.progress = JSON.parse(localStorage.getItem('sam.progress') || '{"unlocked":1}'); } catch { this.progress = { unlocked: 1 }; }
     this.state = 'loading';
     this.levelIndex = 0;
-    this.stats = { score: 0, kills: 0, total: 0, time: 0, secrets: 0 };
+    this.stats = { score: 0, kills: 0, total: 0, time: 0, secrets: 0, secretTotal: 0 };
     this.collected = new Set();
 
     const r = this.renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance', stencil: false });
@@ -156,6 +157,14 @@ export class Game {
     addEventListener('resize', () => this.resize());
     this.resize();
 
+    canvas.addEventListener('webglcontextlost', (e) => {
+      e.preventDefault();
+      this.contextLost = true;
+      if (this.state === 'playing') this.pause();
+      this.hud.message('Graphics device was reset — restoring...', 5, 'big red');
+    });
+    canvas.addEventListener('webglcontextrestored', () => { this.contextLost = false; location.reload(); });
+    this.input.onFallback = () => this.hud.log('Mouse capture unavailable: free-mouse look enabled', '#9fe0ff');
     this.input.onLockChange = (locked) => {
       if (!locked && this.state === 'playing') this.pause();
     };
@@ -236,7 +245,26 @@ export class Game {
   newGame(levelIndex = 0) {
     this.carry = null;
     this.stats.score = 0;
+    this.player.bombs = 0;
     this.startLevel(levelIndex);
+  }
+
+  // Saved run from the last completed level (see levelComplete)
+  get savedRun() {
+    try {
+      const s = JSON.parse(localStorage.getItem('sam.save') || 'null');
+      return s && s.level < LEVELS.length ? s : null;
+    } catch { return null; }
+  }
+
+  continueGame() {
+    const s = this.savedRun;
+    if (!s) return this.newGame(0);
+    this.carry = s.carry;
+    this.stats.score = s.score || 0;
+    this.player.bombs = s.carry?.bombs || 0;
+    if (typeof s.difficulty === 'number') this.settings.difficulty = s.difficulty;
+    this.startLevel(s.level);
   }
 
   startLevel(i, checkpoint = null) {
@@ -266,11 +294,14 @@ export class Game {
     const b = new LevelBuilder(def);
     def.build(b);
     const theme = THEMES[def.theme];
-    if (!b.customScenery) b.scenery({ night: def.theme === 'night' });
+    if (theme.void) b.skyScenery();
+    else if (!b.customScenery) b.scenery({ night: def.theme === 'night', inferno: def.theme === 'inferno' });
     b.finish();
     if (b.water) b.group.add(makeWater(b.water, def.theme === 'night'));
     this.level = b;
     this.world = b.world;
+    if (theme.void) this.world.floor = -Infinity;
+    this.theme = theme;
     this.effects.world = this.world;
     this.levelGroup = b.group;
     this.scene.add(b.group);
@@ -279,7 +310,10 @@ export class Game {
 
     // encounters
     this.spawnQueue = [];
-    this.encounters = b.encounters.map((e) => ({ ...e, state: 'idle', wave: 0, waveT: 0, spawned: 0 }));
+    this.encounters = b.encounters.map((e) => ({ ...e, state: 'idle', wave: 0, waveT: 0, spawned: 0, time: 0 }));
+    this.secrets = b.secrets.map((s) => ({ ...s, found: false }));
+    this.stats.secrets = 0; this.stats.secretTotal = this.secrets.length;
+    this.padCool = 0; this.lavaT = 0;
     this.stats.total = 0;
     for (const e of this.encounters) for (const w of e.waves) for (const s of w.spawn) this.stats.total += s[1];
     this.stats.kills = 0; this.stats.time = 0; this.stats.levelScoreStart = this.stats.score;
@@ -297,12 +331,15 @@ export class Game {
       }
       this.stats.score = checkpoint.score;
       this.player.health = checkpoint.health; this.player.armor = checkpoint.armor;
+      this.player.bombs = checkpoint.bombs || 0;
+      for (const s of this.secrets) if ((checkpoint.secrets || []).includes(this.secrets.indexOf(s))) { s.found = true; this.stats.secrets++; }
       this.weapons.reset(checkpoint.weapons);
       this.player.place(checkpoint.x, checkpoint.z, checkpoint.yaw);
     } else {
       this.collected = new Set();
       if (this.carry) {
         this.player.health = Math.max(100, this.carry.health); this.player.armor = this.carry.armor;
+        this.player.bombs = this.carry.bombs || 0;
         this.weapons.reset(this.carry.weapons);
       } else if (def.loadout) {
         // starting a later level from Level Select: give a fair arsenal
@@ -401,8 +438,9 @@ export class Game {
   updateEncounters(dt) {
     for (let i = this.spawnQueue.length - 1; i >= 0; i--) {
       const q = this.spawnQueue[i];
+      if (this.enemies.alive >= MAX_ALIVE) break; // hold spawns while the arena is saturated
       q.t -= dt;
-      if (q.t <= 0) { this.spawnQueue.splice(i, 1); this.enemies.spawnSafe(q.type, q.x, q.z, q.spread, { encounter: q.enc, bounds: q.bounds }); }
+      if (q.t <= 0) { this.spawnQueue.splice(i, 1); this.enemies.spawnSafe(q.type, q.x, q.z, q.spread, { encounter: q.enc, bounds: q.bounds, floorY: q.floorY }); }
     }
     const p = this.player.pos;
     for (const e of this.encounters) {
@@ -419,6 +457,14 @@ export class Game {
       for (const en of this.enemies.list) if (en.alive && en.encounter === e.id) alive++;
       for (const q of this.spawnQueue) if (q.enc === e.id) alive++;
       e.waveT -= dt;
+      if (e.survive) {
+        // survival: waves arrive on a clock; done once time is up and the stragglers are dead
+        e.time += dt;
+        while (e.wave < e.waves.length && e.time >= (e.waves[e.wave].at ?? 0)) this.spawnWave(e, e.waves[e.wave++]);
+        if (e.time >= e.survive && !e.timeUp) { e.timeUp = true; this.hud.message('HELD THE LINE! Finish them!', 3, 'big'); this.audio.play('secret'); }
+        if (e.time >= e.survive && alive === 0) this.finishEncounter(e);
+        continue;
+      }
       if (e.wave < e.waves.length) {
         const w = e.waves[e.wave];
         if (e.waveT <= 0 && alive <= (w.when ?? 0)) {
@@ -426,11 +472,104 @@ export class Game {
           e.wave++;
           e.waveT = 2.5;
         }
-      } else if (alive === 0 && e.waveT <= 0) {
-        e.state = 'done';
-        for (const d of e.open || []) this.openDoor(d);
-        if (e.message) this.hud.message(e.message, 3);
-        if (e.checkpoint) this.saveCheckpoint(e.checkpoint);
+      } else if (alive === 0 && e.waveT <= 0) this.finishEncounter(e);
+    }
+  }
+
+  finishEncounter(e) {
+    e.state = 'done';
+    for (const d of e.open || []) this.openDoor(d);
+    if (e.message) this.hud.message(e.message, 3);
+    if (e.checkpoint) this.saveCheckpoint(e.checkpoint);
+  }
+
+  // Serious Bomb: wipes out every non-boss enemy nearby and batters the boss.
+  seriousBomb() {
+    const p = this.player;
+    if (p.bombs <= 0 || !p.alive) return;
+    p.bombs--;
+    const fx = this.effects;
+    this.hud.pickupFlash('rgba(255,255,255,0.95)');
+    this.hud.message('SERIOUS BOMB!', 2, 'big');
+    this.audio.play('bigexplosion', { vol: 1.5 });
+    this.audio.play('powerup', { rate: 0.6 });
+    fx.addShake(1.2);
+    for (let i = 0; i < 10; i++) {
+      const a = (i / 10) * Math.PI * 2;
+      fx.explosion(p.pos.x + Math.cos(a) * 14, p.pos.y + 1.5, p.pos.z + Math.sin(a) * 14, 1.6);
+    }
+    for (const e of this.enemies.list) {
+      if (!e.alive) continue;
+      const d = Math.hypot(e.pos.x - p.pos.x, e.pos.z - p.pos.z);
+      if (d > 110) continue;
+      if (e.def.boss) e.damage(3000, null, 'explosive');
+      else e.die('explosive', 9999);
+    }
+    this.projectiles.clearEnemy();
+  }
+
+  // Secrets, jump pads, lava and the void.
+  updateHazards(dt) {
+    const p = this.player, pp = p.pos;
+    for (const s of this.secrets) {
+      if (!s.found && Math.hypot(pp.x - s.x, pp.z - s.z) < s.r && Math.abs(pp.y - s.y) < 3) {
+        s.found = true; this.stats.secrets++; this.stats.score += 500;
+        this.hud.message('SECRET FOUND!', 2.5, 'big');
+        this.audio.play('secret');
+      }
+    }
+    this.padCool -= dt;
+    for (const pad of this.level.jumpPads) {
+      pad.glow.material.opacity = 0.55 + Math.sin(this.time * 6 + pad.x) * 0.25;
+      if (Math.random() < dt * 12) this.effects.add.spawn(pad.x + rand(-1, 1), pad.y + 0.3, pad.z + rand(-1, 1), 0, rand(3, 7), 0, 0.5, 0.25, 0.05, 0.4, 1.4, 3, 0.1, 0.4, 2, 1, 0, 0);
+      if (p.alive && this.padCool <= 0 && Math.hypot(pp.x - pad.x, pp.z - pad.z) < 1.5 && Math.abs(pp.y - (pad.y + 0.25)) < 0.6) {
+        p.vel.x = pad.vx; p.vel.y = pad.vy; p.vel.z = pad.vz;
+        p.onGround = false; pp.y += 0.1;
+        this.padCool = 0.5;
+        this.audio.play('rocket', { rate: 1.4, vol: 0.7 });
+        this.audio.play('jump');
+      }
+    }
+    // lava: burns the player and any grounded enemy standing in it
+    this.lavaT -= dt;
+    for (const L of this.level.lavas) {
+      const inL = (x, z) => x > L.x0 && x < L.x1 && z > L.z0 && z < L.z1;
+      if (p.alive && inL(pp.x, pp.z) && pp.y < L.y + 0.35) {
+        if (this.lavaT <= 0) {
+          this.lavaT = 0.25;
+          p.damage(7, null);
+          this.audio.play('splat', { rate: 1.6, vol: 0.5 });
+          for (let i = 0; i < 6; i++) this.effects.add.spawn(pp.x + rand(-0.5, 0.5), L.y + 0.2, pp.z + rand(-0.5, 0.5), rand(-1, 1), rand(2, 5), rand(-1, 1), 0.5, 0.3, 0.05, 3, 1.2, 0.2, 1, 0.2, 0, 1, 6, 1);
+        }
+      }
+      for (const e of this.enemies.list) {
+        if (e.alive && !e.def.fly && !e.def.boss && inL(e.pos.x, e.pos.z) && e.pos.y < L.y + 0.35) e.damage(18 * dt, null, 'fire');
+      }
+    }
+    // falling off a sky island
+    if (this.world.floor === -Infinity && p.alive && pp.y < -30) {
+      if (p.god) { const c = this.checkpoint || this.level.spawn; p.place(c.x, c.z, c.yaw || 0); }
+      else { this.hud.message('LOST TO THE VOID', 3, 'big red'); p.kill(); }
+    }
+  }
+
+  // Sandstorm dust / underworld embers drifting around the player.
+  updateWeather(dt) {
+    const t = this.theme;
+    if (!t || (!t.storm && !t.embers)) return;
+    const c = this.camera.position, fx = this.effects;
+    if (t.storm) {
+      const n = Math.floor(dt * 260 + Math.random());
+      for (let i = 0; i < n; i++) {
+        fx.alpha.spawn(c.x + rand(-30, 30) - 10, c.y + rand(-2, 10), c.z + rand(-30, 30), rand(14, 22), rand(-1.5, 0.5), rand(3, 7),
+          rand(1.4, 2.4), 0.5, 1.4, 0.82, 0.62, 0.38, 0.75, 0.55, 0.32, 0.28, 0, 0);
+      }
+    }
+    if (t.embers) {
+      const n = Math.floor(dt * 70 + Math.random());
+      for (let i = 0; i < n; i++) {
+        fx.add.spawn(c.x + rand(-25, 25), rand(0, 3), c.z + rand(-25, 25), rand(-0.5, 0.5), rand(1, 3), rand(-0.5, 0.5),
+          rand(2, 4), 0.12, 0.04, 3, 1.1, 0.2, 1.2, 0.2, 0, 1, -0.2, 0.2);
       }
     }
   }
@@ -441,17 +580,18 @@ export class Game {
     const [x0, z0, x1, z1] = e.area;
     const bounds = [x0 - 1.5, z0 - 1.5, x1 + 1.5, z1 + 1.5];
     for (const [type, n, x, z, spread] of w.spawn) {
-      for (let i = 0; i < n; i++) this.spawnQueue.push({ t: i * (type === 'kamikaze' ? 0.09 : 0.16), type, x, z, spread, enc: e.id, bounds });
+      for (let i = 0; i < n; i++) this.spawnQueue.push({ t: i * (type === 'kamikaze' ? 0.09 : 0.16), type, x, z, spread, enc: e.id, bounds, floorY: e.floor || 0 });
     }
     this.audio.play('spawn', { vol: 0.7 });
-    for (const [kind, sub, x, z] of w.items || []) this.pickups.add(kind, sub, x, this.world.groundHeight(x, z, 0.3, 50, 50), z, { effect: true });
+    for (const [kind, sub, x, z] of w.items || []) this.pickups.add(kind, sub, x, this.world.groundHeight(x, z, 0.3, (e.floor || 0) + 3.2, 0), z, { effect: true });
   }
 
   saveCheckpoint(cp) {
     this.checkpoint = {
       ...cp, done: this.encounters.filter((e) => e.state === 'done').map((e) => e.id),
       health: Math.max(this.player.health, 50), armor: this.player.armor, weapons: this.weapons.snapshot(),
-      score: this.stats.score, collected: [...this.collected],
+      score: this.stats.score, collected: [...this.collected], bombs: this.player.bombs,
+      secrets: this.secrets.map((s, i) => (s.found ? i : -1)).filter((i) => i >= 0),
     };
     this.hud.log('Checkpoint saved', '#9fe0ff');
   }
@@ -478,7 +618,7 @@ export class Game {
       e.damage(dmg * mult, d, opts.pellet ? 'pellet' : 'bullet');
       if (e.def.bloodless) fx.dust(hx, hy, hz, -d.x, -d.y, -d.z, 3, e.def.blood);
       else fx.blood(hx, hy, hz, d.x * 0.6, 0.3, d.z * 0.6, opts.pellet ? 3 : 6, e.def.blood);
-      if (e.type === 'biomech' || e.type === 'boss' || e.type === 'arachnid') fx.sparks(hx, hy, hz, -d.x, -d.y, -d.z, 3);
+      if (e.type === 'biomech' || e.def.boss || e.type === 'arachnid') fx.sparks(hx, hy, hz, -d.x, -d.y, -d.z, 3);
       this.hud.hitmarker(!e.alive);
       end = { x: hx, y: hy, z: hz };
     } else if (wh) {
@@ -555,7 +695,12 @@ export class Game {
     this.projectiles.clearEnemy();
   }
 
-  onBossGone() { this.bossGoneT = 3; }
+  // The final level ends in victory; earlier boss fights open the exit portal instead.
+  onBossGone() {
+    const enc = this.encounters.find((e) => e.state !== 'idle' && e.final);
+    if (enc) this.bossGoneT = 3;
+    else this.hud.message('The way forward is open!', 3, 'big');
+  }
 
   onPlayerDeath() {
     this.deadT = 0;
@@ -587,6 +732,8 @@ export class Game {
   }
 
   quitToMenu() {
+    // restore the temple as the attract-mode backdrop
+    if (this.levelIndex !== 0) this.loadLevel(0, null, true);
     this.state = 'menu';
     this.input.unlock();
     this.hud.show(false);
@@ -599,8 +746,9 @@ export class Game {
     this.input.unlock();
     this.hud.show(false);
     this.audio.play('victory');
-    this.carry = { health: this.player.health, armor: this.player.armor, weapons: this.weapons.snapshot() };
+    this.carry = { health: this.player.health, armor: this.player.armor, weapons: this.weapons.snapshot(), bombs: this.player.bombs };
     const next = this.levelIndex + 1;
+    try { localStorage.setItem('sam.save', JSON.stringify({ level: next, carry: this.carry, score: this.stats.score, difficulty: this.settings.difficulty })); } catch { /* ignore */ }
     this.progress.unlocked = Math.max(this.progress.unlocked || 1, Math.min(LEVELS.length, next + 1));
     this.saveProgress();
     this.ui?.showComplete(this.stats, LEVELS[this.levelIndex], next < LEVELS.length);
@@ -619,6 +767,7 @@ export class Game {
     this.audio.play('victory');
     this.progress.unlocked = LEVELS.length;
     this.progress.beaten = true;
+    try { localStorage.removeItem('sam.save'); } catch { /* ignore */ }
     this.saveProgress();
     this.ui?.showVictory(this.stats);
   }
@@ -629,14 +778,23 @@ export class Game {
     const now = performance.now();
     const dt = Math.min(0.05, (now - this.lastT) / 1000);
     this.lastT = now;
-    this.step(dt);
-    this.render();
+    if (this.contextLost) return;
+    try {
+      this.step(dt);
+      this.render();
+    } catch (err) {
+      // never let one bad frame kill the game loop; surface it once
+      this.errorCount = (this.errorCount || 0) + 1;
+      if (this.errorCount <= 3) console.error('frame error', err);
+      if (this.errorCount === 1) this.hud.log('Recovered from an internal error (see console)', '#ff8a7a');
+    }
   }
 
   step(dt) {
     this.time += dt;
     this.skyUniforms.time.value = this.time;
     const input = this.input;
+    input.active = this.state === 'playing';
     if (this.state === 'playing') {
       this.stats.time += dt;
       if (input.wasPressed('Escape') || input.wasPressed('KeyP')) this.pause();
@@ -648,7 +806,10 @@ export class Game {
       this.updateEncounters(dt);
       this.updateDoors(dt);
       this.updateExit(dt);
+      this.updateHazards(dt);
       this.updateLevelFx(dt);
+      this.updateWeather(dt);
+      if (input.wasPressed('KeyB')) this.seriousBomb();
       this.effects.update(dt, this.camera);
       this.hud.update(dt);
       // intensity for music: how much action is going on
@@ -699,14 +860,21 @@ export class Game {
     for (const t of this.level.torches) {
       t.phase += dt * 12;
       const f = 0.85 + Math.sin(t.phase) * 0.08 + Math.sin(t.phase * 2.3) * 0.06 + Math.random() * 0.05;
-      t.sprite.scale.set(1.1 * f, 1.6 * f, 1);
+      if (t.sprite) t.sprite.scale.set(1.1 * f, 1.6 * f, 1);
       if (t.light) t.light.intensity = t.base * f;
     }
     for (const a of this.level.animated) {
       a.phase += dt;
+      if (a.type === 'clouds') {
+        const m = a.obj.material.map; if (m) { m.offset.x += dt * 0.004; m.offset.y += dt * 0.002; }
+        continue;
+      }
       a.obj.rotation.x = Math.sin(a.phase * 0.9) * 0.05;
       a.obj.rotation.z = Math.sin(a.phase * 0.7) * 0.05;
     }
+    // scroll molten lava
+    const lm = getMaterials().lava.map;
+    if (lm) { lm.offset.x += dt * 0.02; lm.offset.y += dt * 0.012; }
   }
 
   placeCamera(dt) {
@@ -733,6 +901,8 @@ export class Game {
     this.renderer.clear();
     this.composer.render();
   }
+
+  get levelCount() { return LEVELS.length; }
 
   // debug helpers for automated tests: advance the simulation deterministically
   simulate(seconds, dt = 1 / 30) {

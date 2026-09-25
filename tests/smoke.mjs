@@ -157,7 +157,7 @@ await step('death -> respawn at checkpoint flow', async () => {
   assert(s.st === 'playing' && s.hp > 0, JSON.stringify(s));
 });
 
-for (let i = 0; i < 4; i++) {
+for (let i = 0; i < 7; i++) {
   await step(`level ${i + 1} builds and renders`, async () => {
     await G((i) => { __game.startLevel(i); __game.player.god = true; __game.simulate(0.5); }, i);
     await wait(300);
@@ -170,7 +170,7 @@ for (let i = 0; i < 4; i++) {
   }, i);
 }
 
-await step('boss fight: spawns, attacks, dies, victory', async () => {
+await step('boss fight: spawns, attacks, dies, opens exit', async () => {
   await G(() => { const g = __game; g.startLevel(3); g.player.god = true; for (const e of g.encounters) if (e.id !== 'BOSS') { e.state = 'done'; for (const d of e.open) g.openDoor(d, true); } g.player.place(0, -75, 0); g.simulate(3); });
   const b = await G(() => ({ boss: !!__game.boss, st: __game.boss?.state, hp: __game.boss?.hp }));
   assert(b.boss, 'boss did not spawn');
@@ -179,9 +179,9 @@ await step('boss fight: spawns, attacks, dies, victory', async () => {
   await shot('21-boss-attack');
   await G(() => { __game.boss.damage(1e6, null, 'explosive'); __game.simulate(2); });
   await shot('21b-boss-dying');
-  const st = await G(() => __game.simulate(8));
-  assert(st === 'victory', 'state ' + st);
-  await shot('22-victory');
+  const st = await G(() => { __game.simulate(8); return { st: __game.state, exit: __game.exit.active }; });
+  assert(st.st === 'playing' && st.exit, 'after colossus: ' + JSON.stringify(st));
+  await shot('22-boss-exit');
 });
 
 await step('level exit portal completes level 1', async () => {
@@ -190,7 +190,42 @@ await step('level exit portal completes level 1', async () => {
   const st = await G(() => ({ st: __game.state, un: __game.progress.unlocked }));
   assert(st.st === 'complete', 'state ' + st.st);
   assert(st.un >= 2, 'unlock ' + st.un);
+  const save = await G(() => __game.savedRun);
+  assert(save && save.level === 1, 'continue save missing: ' + JSON.stringify(save));
   await shot('23-complete');
+});
+
+await step('new mechanics: lava, jump pads, bomb, protection, speed, secrets, void, continue', async () => {
+  const r = await G(() => {
+    const g = __game; const out = {};
+    g.startLevel(5); g.player.god = false; g.player.health = 100; g.player.armor = 0;
+    g.player.place(-8, -38, 0); g.simulate(1); out.lavaHp = g.player.health;
+    g.player.health = 100;
+    g.player.place(0, -28, 0); g.simulate(0.05); out.padVy = g.player.vel.y;
+    g.simulate(2.2); out.afterPadZ = g.player.pos.z;
+    g.player.god = true;
+    g.player.bombs = 1; for (const t of ['gnasher', 'gunner', 'kamikaze']) g.debugSpawn(t, 12);
+    g.simulate(0.4); const before = g.enemies.alive; g.seriousBomb(); out.bomb = [before, g.enemies.alive, g.player.bombs];
+    g.player.god = false; g.player.protectT = 5; const h = g.player.health; g.player.damage(50, null); out.protect = g.player.health === h;
+    g.player.protectT = 0;
+    const s0 = g.secrets[0]; g.player.place(s0.x, s0.z, 0); g.simulate(0.1); out.secret = g.stats.secrets;
+    // speed: compare distance covered in 1s
+    g.startLevel(6); g.player.god = true; g.player.place(0, -40, 0);
+    g.input.keys.add('KeyW'); g.player.speedT = 0; g.simulate(0.6); const z0 = g.player.pos.z; g.simulate(0.4); const slow = z0 - g.player.pos.z;
+    g.player.place(0, -40, 0); g.player.speedT = 10; g.simulate(0.6); const z1 = g.player.pos.z; g.simulate(0.4); const fast = z1 - g.player.pos.z;
+    g.input.keys.delete('KeyW'); out.speed = [slow, fast];
+    // void: step off the launch island
+    g.startLevel(6); g.player.god = false; g.player.place(0, 10, 0); g.player.pos.x = 40; g.simulate(4); out.void = [g.player.alive, g.state];
+    return out;
+  });
+  console.log('    ', JSON.stringify(r));
+  assert(r.lavaHp < 95, 'lava did not burn: ' + r.lavaHp);
+  assert(r.padVy > 8 && r.afterPadZ < -42, 'jump pad failed ' + r.padVy + ' ' + r.afterPadZ);
+  assert(r.bomb[0] >= 3 && r.bomb[1] === 0 && r.bomb[2] === 0, 'bomb ' + r.bomb);
+  assert(r.protect, 'protection did not block damage');
+  assert(r.secret === 1, 'secret not counted');
+  assert(r.speed[1] > r.speed[0] * 1.3, 'speed powerup ' + r.speed);
+  assert(r.void[0] === false && r.void[1] === 'dead', 'void fall ' + r.void);
 });
 
 const perf = await G(async () => {

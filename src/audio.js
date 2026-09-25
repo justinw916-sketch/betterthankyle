@@ -406,6 +406,8 @@ class Music {
     this.combatBus.gain.setTargetAtTime(k, c.currentTime, 0.3);
     this.calmBus.gain.setTargetAtTime(0.35 + (1 - k) * 0.65, c.currentTime, 0.3);
     const spb = 60 / this.bpm / 4; // 16th note
+    // after a throttled/hidden tab, skip ahead instead of scheduling every missed note at once
+    if (this.nextTime < c.currentTime - 0.1) this.nextTime = c.currentTime + 0.05;
     while (this.nextTime < c.currentTime + 0.12) {
       this.schedule(this.step, this.nextTime, spb, k);
       this.nextTime += spb;

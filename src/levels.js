@@ -17,6 +17,18 @@ export const THEMES = {
     skyTop: 0x040818, skyHorizon: 0x1a2a50, skyBottom: 0x101828, sunColor: 0x9ab8ff, sunIntensity: 1.1,
     sunDir: [0.3, 0.6, -0.5], hemi: [0x40508a, 0x201810, 0.55], fog: [0x141e38, 50, 360], exposure: 1.25, clouds: 0.3, stars: true, moon: true,
   },
+  storm: {
+    skyTop: 0x8a5a30, skyHorizon: 0xd8a060, skyBottom: 0xb07a48, sunColor: 0xffd8a0, sunIntensity: 2.1,
+    sunDir: [0.5, 0.55, -0.3], hemi: [0xffd0a0, 0x906040, 1.15], fog: [0xc89660, 28, 190], exposure: 1.1, clouds: 1.0, storm: true,
+  },
+  inferno: {
+    skyTop: 0x120404, skyHorizon: 0x5a1408, skyBottom: 0x200606, sunColor: 0xff7040, sunIntensity: 1.1,
+    sunDir: [0.3, 0.6, -0.4], hemi: [0x803020, 0x200808, 0.6], fog: [0x3a0c06, 45, 280], exposure: 1.3, clouds: 0.5, embers: true,
+  },
+  sky: {
+    skyTop: 0x2a70e0, skyHorizon: 0xe8f2ff, skyBottom: 0xf4f8ff, sunColor: 0xfff4e0, sunIntensity: 3.2,
+    sunDir: [0.3, 0.75, -0.45], hemi: [0xcfe4ff, 0xe0d8c8, 1.3], fog: [0xe4eefa, 140, 800], exposure: 1.0, clouds: 0.7, void: true,
+  },
   boss: {
     skyTop: 0x4a1020, skyHorizon: 0xff6a30, skyBottom: 0x802010, sunColor: 0xffa070, sunIntensity: 2.8,
     sunDir: [0.2, 0.4, -0.8], hemi: [0xff9070, 0x603020, 0.95], fog: [0xc05a3a, 70, 460], exposure: 1.05, clouds: 1.0,
@@ -82,7 +94,7 @@ export const LEVELS = [
       b.pickup('armor', 'large', -24, -101, 2.4);
       b.pickup('ammo', 'bullets', 24, -95, 2.4); b.pickup('ammo', 'shells', 24, -107, 2.4);
       b.pickup('health', 'medium', -4, -84); b.pickup('health', 'medium', 4, -84);
-      b.pickup('health', 'super', 30, -128); // tucked in a corner
+      b.secret(30, -128, ['health', 'super']); // tucked in a corner behind the platform
       b.encounter({
         id: 'C', area: [-30, -128, 30, -78], lock: ['c_in'], open: ['c_in', 'c_out'],
         message: 'Temple plaza secured.', checkpoint: { x: 0, z: -95, yaw: 0 },
@@ -151,6 +163,7 @@ export const LEVELS = [
       b.pickup('ammo', 'shells', -30, -158); b.pickup('ammo', 'rockets', 30, -158);
       b.pickup('health', 'large', -40, -131); b.pickup('health', 'large', 40, -131);
       b.pickup('powerup', 'damage', 0, -160);
+      b.secret(-43, -163, ['powerup', 'bomb']);
       b.encounter({
         id: 'B', area: [-43, -163, 43, -101], lock: ['b_in'], open: ['b_in', 'b_out'],
         message: 'Fortress taken!', checkpoint: { x: 0, z: -110, yaw: 0 },
@@ -215,6 +228,7 @@ export const LEVELS = [
       b.pickup('ammo', 'cells', -10, -100); b.pickup('ammo', 'rockets', 10, -100);
       b.pickup('ammo', 'grenades', -45, -168); b.pickup('ammo', 'bullets', 45, -168);
       b.pickup('powerup', 'damage', 0, -135);
+      b.secret(47, -170, ['powerup', 'protect']);
       b.encounter({
         id: 'B', area: [-48, -170, 48, -98], lock: ['b_in'], open: ['b_in', 'b_out'],
         message: 'The valley is yours.', checkpoint: { x: 0, z: -105, yaw: 0 },
@@ -276,14 +290,199 @@ export const LEVELS = [
       }
       b.pickup('ammo', 'cells', -20, -70); b.pickup('ammo', 'bullets', 20, -70);
       b.pickup('powerup', 'damage', 0, -130);
-      b.pickup('health', 'super', 0, -195);
+      b.pickup('health', 'super', 0, -196);
       b.encounter({
-        id: 'BOSS', area: [-68, -198, 68, -64], lock: ['boss_in'], open: [], final: true,
+        id: 'BOSS', area: [-68, -198, 68, -64], lock: ['boss_in'], open: [], message: 'The Colossus is dust. The portal awaits!',
         checkpoint: { x: 0, z: -68, yaw: 0 },
         waves: [{ spawn: [S('boss', 1, 0, -175, 0)], msg: 'THE COLOSSUS AWAKENS!' }],
       });
+      b.exit = { x: 0, z: -188, requires: 'BOSS' };
+      b.secret(-66, -196, ['powerup', 'bomb']);
       b.scenery({ pyramids: [[0, -420, 160], [-300, -380, 90], [300, -380, 90], [-420, 150, 60]] });
       b.customScenery = true;
+    },
+  },
+  // ------------------------------------------------------------------ LEVEL 5
+  {
+    id: 'siege', name: 'Sandstorm Siege', subtitle: 'Hold the Desert Fortress', theme: 'storm', music: 1, seed: 55,
+    loadout: { owned: ['knife', 'revolver', 'shotgun', 'dshotgun', 'tommy', 'minigun', 'rocket', 'grenade', 'laser', 'cannon'], ammo: { shells: 60, bullets: 300, rockets: 25, grenades: 15, cells: 200, cannonballs: 4 }, armor: 100 },
+    build(b) {
+      const M = b.M;
+      b.spawn = { x: 0, z: 10, yaw: 0 };
+      b.arena(-10, -3, 10, 14, { h: 8, wall: M.sandstone, floor: M.sand, gaps: { n: [[0, 6]] } });
+      b.pickup('armor', 'medium', -6, 6); b.pickup('health', 'medium', 6, 6); b.pickup('ammo', 'bullets', 0, 3);
+
+      // The fortress: one huge walled yard you must hold for 2.5 minutes
+      b.arena(-55, -116, 55, -6, { h: 10, wall: M.sandstone, floor: M.sand, gaps: { s: [[0, 6]], n: [[0, 6]] } });
+      b.door('a_in', 0, -5.25, 6, 'x', 7, true);
+      b.door('a_out', 0, -116.75, 6, 'x', 7, false);
+      b.platform(0, -61, 16, 16, 3, M.sandstone, 'nsew');
+      b.platform(-42, -22, 8, 8, 4, M.sandstone, 'e'); b.platform(42, -22, 8, 8, 4, M.sandstone, 'w');
+      b.platform(-42, -100, 8, 8, 4, M.sandstone, 'e'); b.platform(42, -100, 8, 8, 4, M.sandstone, 'w');
+      for (const [x, z, w, d] of [[-20, -40, 6, 1], [20, -40, 6, 1], [-20, -82, 6, 1], [20, -82, 6, 1], [0, -30, 8, 1], [0, -92, 8, 1], [-30, -61, 1, 6], [30, -61, 1, 6]]) b.cover(x, z, w, d);
+      for (const [x, z] of [[-25, -20], [25, -104], [-12, -106], [12, -18]]) b.pillar(x, z, 6, 1, true);
+      b.palm(-50, -60); b.palm(50, -60); b.palm(-50, -84); b.palm(50, -38);
+      for (const [x, z] of [[-52, -9], [52, -9], [-52, -113], [52, -113]]) b.brazier(x, z);
+      b.pickup('powerup', 'protect', 0, -61, 3);
+      b.pickup('weapon', 'rocket', -42, -22, 4); b.pickup('weapon', 'minigun', 42, -22, 4);
+      b.pickup('weapon', 'grenade', -42, -100, 4); b.pickup('powerup', 'speed', 42, -100, 4);
+      b.pickup('powerup', 'bomb', 0, -46);
+      for (const [x, z] of [[-35, -40], [35, -40], [-35, -82], [35, -82]]) { b.pickup('ammo', 'rockets', x, z); b.pickup('ammo', 'bullets', x + 2, z); b.pickup('health', 'medium', x, z + 2); }
+      b.pickup('ammo', 'shells', -10, -20); b.pickup('ammo', 'cells', 10, -20); b.pickup('armor', 'large', 0, -104);
+      b.secret(53, -107, ['health', 'super']);
+      b.encounter({
+        id: 'SIEGE', area: [-53, -114, 53, -10], lock: ['a_in'], open: ['a_in', 'a_out'], survive: 150,
+        message: 'The siege is broken!',
+        waves: [
+          { at: 0, spawn: [S('gnasher', 10, 0, -100, 30), S('gunner', 8, 0, -105, 40)], msg: 'SURVIVE THE SIEGE!' },
+          { at: 15, spawn: [S('kamikaze', 20, 0, -110, 40)], msg: 'Kamikazes from the north!' },
+          { at: 30, spawn: [S('bull', 5, 0, -105, 40), S('skeleton', 6, 0, -100, 40)], items: [['ammo', 'rockets', -10, -50], ['health', 'large', 10, -72]] },
+          { at: 45, spawn: [S('harpy', 8, 0, -60, 30), S('kamikaze', 8, -50, -60, 4), S('kamikaze', 8, 50, -60, 4)], msg: 'Flanked!' },
+          { at: 60, spawn: [S('arachnid', 2, 0, -105, 30), S('gunner', 10, 0, -100, 45)], items: [['ammo', 'bullets', -8, -50], ['armor', 'medium', 8, -50]] },
+          { at: 75, spawn: [S('kamikaze', 12, -48, -110, 5), S('kamikaze', 12, 48, -110, 5), S('kamikaze', 12, 0, -13, 20)], msg: 'AAAAAAAAH!' },
+          { at: 90, spawn: [S('biomech', 2, 0, -108, 35), S('bull', 6, 0, -20, 35)], items: [['ammo', 'rockets', 0, -50], ['health', 'large', 0, -72]] },
+          { at: 105, spawn: [S('skeleton', 8, 0, -100, 40), S('harpy', 8, 0, -60, 30), S('gnasher', 12, 0, -105, 40)] },
+          { at: 120, spawn: [S('kamikaze', 20, -45, -60, 8), S('kamikaze', 20, 45, -60, 8), S('arachnid', 2, 0, -105, 30)], msg: 'FINAL ASSAULT!', items: [['powerup', 'damage', 0, -75]] },
+        ],
+      });
+      b.arena(-8, -131, 8, -119, { h: 8, wall: M.sandstone, floor: M.sand, gaps: { s: [[0, 6]] } });
+      b.brazier(-6, -129); b.brazier(6, -129);
+      b.exit = { x: 0, z: -126, requires: 'SIEGE' };
+    },
+  },
+  // ------------------------------------------------------------------ LEVEL 6
+  {
+    id: 'duat', name: 'Halls of the Duat', subtitle: 'Rivers of Fire', theme: 'inferno', music: 2, seed: 66,
+    loadout: { owned: ['knife', 'revolver', 'shotgun', 'dshotgun', 'tommy', 'minigun', 'rocket', 'grenade', 'laser', 'cannon'], ammo: { shells: 70, bullets: 350, rockets: 30, grenades: 20, cells: 250, cannonballs: 6 }, armor: 100 },
+    build(b) {
+      const M = b.M;
+      const W = M.basaltGlyph, F = M.tilesDark;
+      b.spawn = { x: 0, z: 10, yaw: 0 };
+      b.arena(-8, -3, 8, 14, { h: 8, wall: M.basalt, floor: F, gaps: { n: [[0, 6]] } });
+      b.brazier(-6, 11, 0, false); b.brazier(6, 11, 0, false);
+      b.pickup('ammo', 'cells', -5, 5); b.pickup('ammo', 'rockets', 5, 5); b.pickup('armor', 'medium', 0, 2);
+
+      // Arena A: a river of fire with two stone crossings and a launch pad over the flames
+      b.arena(-35, -70, 35, -6, { h: 11, wall: W, floor: F, gaps: { s: [[0, 6]], n: [[0, 6]] } });
+      b.door('a_in', 0, -5.25, 6, 'x', 7, true);
+      b.door('a_out', 0, -70.75, 6, 'x', 7, false);
+      b.lava(-35, -42, -22, -34); b.lava(-15, -42, 15, -34); b.lava(22, -42, 35, -34);
+      b.jumpPad(0, -28, 0, 0, -48, 0); b.jumpPad(0, -52, 0, 0, -26, 0);
+      for (const [x, z] of [[-25, -18], [25, -18], [-25, -58], [25, -58]]) b.pillar(x, z, 10, 1.1);
+      b.statue(-31, -20, Math.PI / 2, 7); b.statue(31, -20, -Math.PI / 2, 7);
+      for (const [x, z] of [[-32, -9], [32, -9], [-32, -67], [32, -67]]) b.brazier(x, z, 0, false);
+      b.pickup('powerup', 'damage', 0, -38); // dash through the fire for it
+      b.pickup('weapon', 'cannon', 0, -62); b.pickup('ammo', 'cannonballs', 3, -62);
+      b.pickup('health', 'medium', -30, -30); b.pickup('health', 'medium', 30, -30);
+      b.pickup('ammo', 'cells', -30, -50); b.pickup('ammo', 'grenades', 30, -50);
+      b.secret(-33, -62, ['powerup', 'bomb']);
+      b.encounter({
+        id: 'A', area: [-33, -68, 33, -10], lock: ['a_in'], open: ['a_in', 'a_out'],
+        message: 'The river is crossed.', checkpoint: { x: 0, z: -55, yaw: 0 },
+        waves: [
+          { spawn: [S('skeleton', 6, 0, -62, 25), S('gnasher', 8, 0, -60, 25)] },
+          { when: 3, spawn: [S('harpy', 8, 0, -40, 20), S('gunner', 8, 0, -64, 28)] },
+          { when: 2, spawn: [S('kamikaze', 14, -28, -64, 5), S('kamikaze', 14, 28, -64, 5), S('bull', 3, 0, -62, 20)], msg: 'Across the fire!' },
+          { when: 2, spawn: [S('biomech', 2, 0, -62, 20), S('skeleton', 6, 0, -60, 25)], items: [['health', 'large', 0, -14], ['ammo', 'rockets', 4, -14]] },
+        ],
+      });
+
+      b.corridorZ(0, -92, -71.5, 6, 8, M.basalt, F);
+      b.pickup('ammo', 'bullets', -1.5, -80); b.pickup('ammo', 'shells', 1.5, -80);
+      b.lava(-2.9, -88, 2.9, -84); // a short fire trench: jump it
+
+      // Arena B: Hall of Judgement - a dais ringed by a lava moat
+      b.arena(-45, -165, 45, -93.5, { h: 12, wall: W, floor: F, gaps: { s: [[0, 6]], n: [[0, 6]] } });
+      b.door('b_in', 0, -92.75, 6, 'x', 7, true);
+      b.door('b_out', 0, -165.75, 6, 'x', 7, false);
+      b.platform(0, -129, 20, 20, 4, M.basalt, 'ns', F);
+      b.lava(-15, -144, 15, -139); b.lava(-15, -119, 15, -114); b.lava(-15, -139, -10, -119); b.lava(10, -139, 15, -119);
+      b.jumpPad(-22, -129, 0, -5, -129, 4); b.jumpPad(22, -129, 0, 5, -129, 4);
+      for (const [x, z] of [[-30, -108], [30, -108], [-30, -150], [30, -150]]) b.obelisk(x, z, 13);
+      for (const z of [-105, -129, -153]) { b.statue(-41, z, Math.PI / 2, 8); b.statue(41, z, -Math.PI / 2, 8); }
+      for (const [x, z] of [[-42, -96], [42, -96], [-42, -162], [42, -162]]) b.brazier(x, z, 0, false);
+      b.pickup('powerup', 'bomb', -4, -129, 4); b.pickup('armor', 'large', 4, -129, 4);
+      b.pickup('ammo', 'rockets', -38, -110); b.pickup('ammo', 'cells', 38, -110);
+      b.pickup('ammo', 'cannonballs', -38, -150); b.pickup('ammo', 'bullets', 38, -150);
+      b.pickup('health', 'large', -20, -160); b.pickup('health', 'large', 20, -160);
+      b.encounter({
+        id: 'B', area: [-43, -163, 43, -98], lock: ['b_in'], open: ['b_in', 'b_out'],
+        message: 'Judgement is passed.', checkpoint: { x: 0, z: -104, yaw: 0 },
+        waves: [
+          { spawn: [S('arachnid', 2, 0, -158, 30), S('gunner', 8, 0, -155, 35)] },
+          { when: 3, spawn: [S('bull', 6, 0, -158, 35), S('gnasher', 10, 0, -150, 35)] },
+          { when: 3, spawn: [S('kamikaze', 16, -40, -160, 4), S('kamikaze', 16, 40, -160, 4), S('harpy', 8, 0, -129, 30)], msg: 'The damned pour in!' },
+          { when: 3, spawn: [S('biomech', 3, 0, -158, 35), S('skeleton', 8, 0, -150, 35)], items: [['ammo', 'rockets', -6, -102], ['health', 'large', 6, -102]] },
+          { when: 2, spawn: [S('kamikaze', 20, 0, -160, 30), S('arachnid', 2, 0, -158, 30), S('harpy', 6, 0, -129, 30)], items: [['armor', 'medium', 0, -102]] },
+        ],
+      });
+      b.arena(-8, -181, 8, -168, { h: 8, wall: M.basalt, floor: F, gaps: { s: [[0, 6]] } });
+      b.brazier(-6, -179); b.brazier(6, -179, 0, false);
+      b.exit = { x: 0, z: -176, requires: 'B' };
+    },
+  },
+  // ------------------------------------------------------------------ LEVEL 7
+  {
+    id: 'sky', name: 'Sky Temple of Ra', subtitle: 'Above the Clouds', theme: 'sky', music: 3, seed: 77,
+    loadout: { owned: ['knife', 'revolver', 'shotgun', 'dshotgun', 'tommy', 'minigun', 'rocket', 'grenade', 'laser', 'cannon'], ammo: { shells: 80, bullets: 400, rockets: 35, grenades: 25, cells: 300, cannonballs: 8 }, armor: 100 },
+    build(b) {
+      const M = b.M;
+      b.spawn = { x: 0, z: 10, yaw: 0 };
+      // I0: launch island
+      b.island(-10, -2, 10, 14, 0, { gaps: { n: [[0, 4]] } });
+      b.brazier(-7, 11); b.brazier(7, 11, 0, false);
+      b.pickup('ammo', 'rockets', -5, 5); b.pickup('ammo', 'cells', 5, 5); b.pickup('health', 'medium', 0, 2);
+      b.bridge(-2, -20, 2, -2, 0);
+
+      // I1: Garden of Winds
+      b.island(-30, -60, 30, -20, 0, { gaps: { s: [[0, 4]], w: [[-41, 4]] } });
+      for (const [x, z] of [[-20, -30], [20, -30], [-20, -50], [20, -50]]) b.pillar(x, z, 7, 0.9);
+      b.palm(-26, -24); b.palm(26, -24); b.palm(-26, -56); b.palm(26, -56);
+      b.jumpPad(0, -55, 0, 0, -77, 6);
+      b.pickup('ammo', 'bullets', -12, -40); b.pickup('ammo', 'shells', 12, -40); b.pickup('armor', 'medium', 0, -26);
+      // hidden islet off the west edge, reached by a pad hidden behind a pillar
+      b.jumpPad(-25, -41, 0, -46, -41, 2);
+      b.island(-51, -46, -41, -36, 2, { parapet: 0 });
+      b.secret(-46, -41, ['health', 'super'], 2);
+      b.pickup('powerup', 'damage', -48, -38, 2);
+      b.encounter({
+        id: 'A', area: [-28, -58, 28, -22], checkpoint: { x: 0, z: -45, yaw: 0 }, message: 'The gardens are calm. Take the launch pad!',
+        waves: [
+          { spawn: [S('harpy', 8, 0, -40, 20), S('gnasher', 6, 0, -52, 20)], msg: 'They come on the wind!' },
+          { when: 2, spawn: [S('kamikaze', 10, -24, -54, 4), S('kamikaze', 10, 24, -54, 4), S('gunner', 6, 0, -52, 20)] },
+          { when: 2, spawn: [S('harpy', 10, 0, -40, 20), S('skeleton', 4, 0, -50, 20)], items: [['health', 'large', 0, -30]] },
+        ],
+      });
+
+      // I2: the Colonnade (6 m higher)
+      b.island(-25, -110, 25, -70, 6, { gaps: { n: [[0, 5]] } });
+      for (const z of [-80, -92, -104]) { b.pillarAt(-12, z, 6, 8); b.pillarAt(12, z, 6, 8); }
+      for (const [x, z, w, d] of [[-6, -86, 4, 1], [6, -98, 4, 1]]) b.cover(x, z, w, d, 1.3, M.sandstoneDark, 6);
+      b.pickup('ammo', 'rockets', -20, -75, 6); b.pickup('ammo', 'cannonballs', 20, -75, 6);
+      b.pickup('powerup', 'speed', 0, -106, 6);
+      b.encounter({
+        id: 'B', area: [-23, -108, 23, -72], floor: 6, checkpoint: { x: 0, z: -84, yaw: 0 }, message: 'The colonnade is clear. Cross the bridge!',
+        waves: [
+          { spawn: [S('skeleton', 6, 0, -104, 18), S('gunner', 6, 0, -104, 18)] },
+          { when: 2, spawn: [S('bull', 4, 0, -104, 15), S('gnasher', 8, 0, -100, 18)], msg: 'Stampede in the sky!' },
+          { when: 3, spawn: [S('arachnid', 2, 0, -104, 15), S('harpy', 8, 0, -90, 18)], items: [['health', 'large', 0, -76]] },
+          { when: 2, spawn: [S('biomech', 2, 0, -104, 15), S('kamikaze', 16, 0, -106, 18)], items: [['armor', 'large', 0, -76]] },
+        ],
+      });
+      b.bridge(-2.5, -130, 2.5, -110, 6);
+
+      // I3: the Sun Temple - Ra's arena
+      b.island(-45, -200, 45, -130, 6, { gaps: { s: [[0, 5]] } });
+      for (const [x, z] of [[-30, -150], [30, -150], [-30, -185], [30, -185]]) b.obeliskAt(x, z, 6, 14);
+      for (const [x, z] of [[-15, -165], [15, -165]]) b.pillarAt(x, z, 6, 9, 1.4);
+      for (const [x, z] of [[-42, -133], [42, -133], [-42, -197], [42, -197]]) b.brazierAt(x, z, 6, false);
+      for (const [x, z] of [[-38, -145], [38, -145], [-38, -180], [38, -180]]) { b.pickup('ammo', 'rockets', x, z, 6); b.pickup('ammo', 'cells', x + 2, z, 6); b.pickup('health', 'large', x, z + 2, 6); }
+      b.pickup('powerup', 'protect', 0, -140, 6); b.pickup('powerup', 'bomb', 0, -196, 6);
+      b.pickup('ammo', 'cannonballs', -5, -140, 6); b.pickup('armor', 'large', 5, -140, 6);
+      b.encounter({
+        id: 'RA', area: [-43, -198, 43, -134], floor: 6, final: true,
+        waves: [{ spawn: [S('ra', 1, 0, -185, 0)], msg: 'RA DESCENDS FROM THE SUN!' }],
+      });
     },
   },
 ];

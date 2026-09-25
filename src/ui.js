@@ -27,6 +27,7 @@ export class UI {
     if (el) el.classList.add('show');
     this.current = name;
     if (name === 'levels') this.buildLevels();
+    if (name === 'main') this.refreshContinue();
     if (name === 'options') this.syncOptions();
   }
 
@@ -43,10 +44,11 @@ export class UI {
   async act(a, btn) {
     const g = this.game;
     // request pointer lock synchronously while we still hold the click's user activation
-    if (['new', 'level', 'resume', 'restart', 'respawn', 'next'].includes(a)) g.input.lock();
+    if (['new', 'continue', 'level', 'resume', 'restart', 'respawn', 'next'].includes(a)) g.input.lock();
     await g.ensureAudio();
     switch (a) {
       case 'new': g.newGame(0); break;
+      case 'continue': g.continueGame(); break;
       case 'levels': this.show('levels', true); break;
       case 'level': g.newGame(Number(btn.dataset.level)); break;
       case 'difficulty':
@@ -62,6 +64,13 @@ export class UI {
       case 'quit': g.quitToMenu(); break;
       case 'next': g.nextLevel(); break;
     }
+  }
+
+  refreshContinue() {
+    const btn = $('btn-continue');
+    const s = this.game.savedRun;
+    btn.hidden = !s;
+    if (s) btn.innerHTML = `Continue<small>Level ${s.level + 1}: ${LEVELS[s.level].name}</small>`;
   }
 
   updateDifficulty() {
@@ -122,6 +131,7 @@ export class UI {
     const m = Math.floor(stats.time / 60), s = Math.floor(stats.time % 60);
     this.statRows($('complete-stats'), [
       ['Kills', `${stats.kills} / ${stats.total}`],
+      ['Secrets', `${stats.secrets} / ${stats.secretTotal}`],
       ['Time', `${m}:${String(s).padStart(2, '0')}`],
       ['Score', stats.score],
       ['Difficulty', DIFFICULTIES[this.game.settings.difficulty].name],

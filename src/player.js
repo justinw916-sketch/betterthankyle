@@ -27,6 +27,9 @@ export class Player {
     this.hurtT = 0;
     this.damageDirs = [];
     this.seriousDamage = 0;
+    this.protectT = 0;   // Serious Protection: invulnerable
+    this.speedT = 0;     // Serious Speed: +55% movement
+    this.bombs = this.bombs || 0; // Serious Bombs carry across deaths within a level via checkpoint
     this.god = false;
     this.vel.x = this.vel.y = this.vel.z = 0;
     this.eyeOffset = 0;
@@ -41,6 +44,14 @@ export class Player {
 
   update(dt, input) {
     const world = this.game.world;
+    // stability guard: restore the last good state if physics ever produces NaN
+    const p0 = this.pos;
+    if (!Number.isFinite(p0.x) || !Number.isFinite(p0.y) || !Number.isFinite(p0.z)) {
+      if (this.lastGood) Object.assign(p0, this.lastGood);
+      this.vel.x = this.vel.y = this.vel.z = 0;
+    } else this.lastGood = { x: p0.x, y: p0.y, z: p0.z };
+    if (!Number.isFinite(this.yaw)) this.yaw = 0;
+    if (!Number.isFinite(this.pitch)) this.pitch = 0;
     if (!this.alive) {
       // death cam: sink to floor
       this.eyeOffset = Math.max(-1.3, this.eyeOffset - dt * 2.5);
@@ -66,7 +77,7 @@ export class Player {
       wx = fx * cos + fz * sin;
       wz = -fx * sin + fz * cos;
     }
-    const maxSpeed = PLAYER.maxSpeed * (walk ? 0.45 : 1);
+    const maxSpeed = PLAYER.maxSpeed * (walk ? 0.45 : 1) * (this.speedT > 0 ? 1.55 : 1);
     const v = this.vel;
     if (this.onGround) {
       // friction
@@ -138,6 +149,8 @@ export class Player {
     this.landKick *= Math.exp(-dt * 8);
     this.hurtT = Math.max(0, this.hurtT - dt);
     if (this.seriousDamage > 0) this.seriousDamage = Math.max(0, this.seriousDamage - dt);
+    if (this.protectT > 0) this.protectT = Math.max(0, this.protectT - dt);
+    if (this.speedT > 0) this.speedT = Math.max(0, this.speedT - dt);
     // overheal slowly decays above 100 like the classics
     if (this.health > 100) this.health = Math.max(100, this.health - dt * 1.0);
   }
@@ -146,8 +159,17 @@ export class Player {
     return this.pos.y + PLAYER.eye + this.eyeOffset - this.landKick + Math.sin(this.bob * 2) * 0.05 * this.bobAmt;
   }
 
+  // Instant death regardless of armor (falling into the void).
+  kill() {
+    if (!this.alive) return;
+    this.health = 0; this.alive = false;
+    this.game.audio.play('death');
+    this.game.onPlayerDeath();
+  }
+
   damage(amount, from, knock = 0) {
     if (!this.alive || this.god) return;
+    if (this.protectT > 0) { this.game.hud.pickupFlash('rgba(255,215,90,0.12)'); return; }
     amount *= this.game.difficulty.dmg;
     // armor absorbs two thirds while it lasts
     const absorbed = Math.min(this.armor, amount * 0.66);

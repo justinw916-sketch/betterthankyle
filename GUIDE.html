@@ -50,7 +50,7 @@
   <p>Serious Arena Mayhem · Field Guide &amp; Technical Manual</p>
 </header>
 <nav>
-  <a href="#play">Play</a><a href="#controls">Controls</a><a href="#weapons">Arsenal</a><a href="#enemies">Bestiary</a>
+  <a href="#play">Play</a><a href="#controls">Controls</a><a href="#weapons">Arsenal</a><a href="#powerups">Power-ups</a><a href="#enemies">Bestiary</a>
   <a href="#levels">Levels</a><a href="#arch">Architecture</a><a href="#tech">Tech</a><a href="#tests">Testing</a><a href="#tuning">Tuning</a>
 </nav>
 <main>
@@ -90,7 +90,8 @@ docker build -t sam . ; docker run --rm -p 8080:80 sam</pre>
     <tr><td><kbd>Space</kbd></td><td>Jump</td><td>Rocket jumping works (your own splash damage is reduced 65%)</td></tr>
     <tr><td><kbd>Shift</kbd></td><td>Walk</td><td>45% speed</td></tr>
     <tr><td><kbd>1</kbd>–<kbd>9</kbd>, <kbd>0</kbd></td><td>Select weapon</td><td>Mouse wheel cycles; <kbd>Q</kbd> = previous weapon</td></tr>
-    <tr><td><kbd>Esc</kbd> / <kbd>P</kbd></td><td>Pause</td><td>Click the canvas to recapture the mouse</td></tr>
+    <tr><td><kbd>B</kbd></td><td>Serious Bomb</td><td>Destroys every non-boss enemy within ~110 m; boss takes 3000</td></tr>
+    <tr><td><kbd>Esc</kbd> / <kbd>P</kbd></td><td>Pause</td><td>Click the canvas to recapture the mouse. If the browser refuses mouse capture, free-mouse look turns on automatically</td></tr>
   </table></div>
 </section>
 
@@ -113,6 +114,20 @@ docker build -t sam . ; docker run --rm -p 8080:80 sam</pre>
   </table></div>
 </section>
 
+<section id="powerups">
+  <h2>Power-ups &amp; items</h2>
+  <div class="scroll"><table>
+    <tr><th>Item</th><th>Effect</th><th>Duration</th></tr>
+    <tr><td>Serious Damage (red crystal)</td><td>All weapon damage ×4</td><td>30 s</td></tr>
+    <tr><td>Serious Protection (gold crystal)</td><td>Complete invulnerability</td><td>20 s</td></tr>
+    <tr><td>Serious Speed (cyan crystal)</td><td>Movement speed +55%</td><td>20 s</td></tr>
+    <tr><td>Serious Bomb (black sphere)</td><td>Carry up to 3, press <kbd>B</kbd> to wipe out the arena</td><td>Instant</td></tr>
+    <tr><td>Health: small / medium / large / super</td><td>+10 (to 200) / +25 / +50 (to 100) / +100 (to 200)</td><td>Overheal above 100 decays 1/s</td></tr>
+    <tr><td>Armor: small / medium / large</td><td>+10 (to 200) / +50 (to 100) / +100 (to 200); absorbs 66% of damage</td><td>—</td></tr>
+  </table></div>
+  <p>Every level hides one <b>secret</b> (worth 500 points plus a reward). The HUD tracks secrets found, and so does the results screen.</p>
+</section>
+
 <section id="enemies">
   <h2>Bestiary</h2>
   <p>HP is scaled by difficulty (Tourist ×0.6 … Serious ×1.5); damage dealt to you is scaled ×0.35 … ×1.8.</p>
@@ -133,6 +148,8 @@ docker build -t sam . ; docker run --rm -p 8080:80 sam</pre>
       <p>Circles overhead, spits venom, then dives for a claw strike and climbs away. Track it with the tommygun.</p></div>
     <div class="card"><h4>Biomechanoid</h4><span class="tag">700 HP</span><span class="tag">homing rockets</span>
       <p>Heavy walker firing paired homing rockets every ~3 s. Break line of sight behind pillars and let the rockets hit stone.</p></div>
+    <div class="card"><h4>Ra, the Sun Colossus (final boss)</h4><span class="tag">22 000 HP</span><span class="tag">sun nova</span>
+      <p>A golden rematch crowned by a blazing sun disc. On top of the Colossus attacks it fires expanding rings of fireballs. Strafe through the gaps.</p></div>
     <div class="card"><h4>The Colossus (boss)</h4><span class="tag">14 000 HP</span><span class="tag">22 m tall</span>
       <p>Cycles fireball volleys, cannon barrages, a ground-stomp shockwave (jump to dodge it: it only hurts grounded targets)
         and summons kamikazes, harpies and gnashers. Enrages below 50% HP.</p></div>
@@ -149,9 +166,15 @@ docker build -t sam . ; docker run --rm -p 8080:80 sam</pre>
     <div class="card"><h4>3 · Valley of the Moon</h4><span class="tag">night</span><span class="tag">133 enemies</span>
       <p>Torch-lit basalt halls under a starfield, then a valley lined with jackal-headed statues. Finds: grenade launcher, laser gun.</p></div>
     <div class="card"><h4>4 · The Great Pyramid</h4><span class="tag">blood-red sky</span><span class="tag">boss</span>
-      <p>A warm-up arena, then a 140×140 m amphitheatre before the Great Pyramid for the Colossus. Finds: SBC Cannon and stockpiles of ammo.</p></div>
+      <p>A warm-up arena, then a 140×140 m amphitheatre before the Great Pyramid for the Colossus. Destroying it opens the portal onward. Finds: SBC Cannon and stockpiles of ammo.</p></div>
+    <div class="card"><h4>5 · Sandstorm Siege</h4><span class="tag">sandstorm</span><span class="tag">survival · 199 enemies</span>
+      <p>Hold a 110 m desert fortress for <b>2 min 30 s</b> while nine timed assault waves pour in through blowing sand. A countdown replaces the objective; when it hits zero, finish the stragglers. Towers, a central keep and sandbag cover.</p></div>
+    <div class="card"><h4>6 · Halls of the Duat</h4><span class="tag">underworld</span><span class="tag">lava · jump pads</span>
+      <p>Rivers of molten lava burn anything that wades in. Launch pads throw you across the flames and onto the Hall of Judgement's moated dais. Embers drift through the red dark.</p></div>
+    <div class="card"><h4>7 · Sky Temple of Ra</h4><span class="tag">floating islands</span><span class="tag">final boss</span>
+      <p>Temple islands above a sea of clouds, linked by railless bridges and launch pads. Falling off is fatal. At the summit waits <b>Ra, the Sun Colossus</b>, who adds a radial sun-nova attack to the Colossus moveset.</p></div>
   </div>
-  <p>Weapons, ammo, health and armor carry between levels. Clearing an arena saves a <b>checkpoint</b>; dying offers a respawn there.
+  <p><b>Continue</b> on the main menu resumes from the last level you finished, keeping your arsenal. Weapons, ammo, bombs, health and armor carry between levels. Clearing an arena saves a <b>checkpoint</b>; dying offers a respawn there.
     Choosing a later level from <i>Select Level</i> grants a fair starting loadout.</p>
 </section>
 
@@ -232,8 +255,8 @@ docker build -t sam . ; docker run --rm -p 8080:80 sam</pre>
 <pre>npm install          # dev deps: three, playwright
 npm test             # runs all three suites below
 node tests/unit.mjs          # collision / ray math (12 tests)
-node tests/smoke.mjs         # boots in headless Chromium, 15 scenarios, screenshots to test-results/
-node tests/playthrough.mjs   # a bot plays all 4 levels to completion + boss victory</pre>
+node tests/smoke.mjs         # boots in headless Chromium, 20+ scenarios incl. all new mechanics, screenshots to test-results/
+node tests/playthrough.mjs   # a bot plays all 7 levels to completion + final victory (LEVEL=n for one level)</pre>
   <p>The playthrough bot aims, switches weapons and fires through the real weapon/projectile code, relocating when it loses line of sight.
     It asserts every encounter triggers, every wave spawns, every door opens and every exit portal (or the boss victory) is reachable.
     It already caught a mid-iteration crash when the boss died and a case where melee enemies couldn't reach a player standing on a platform.</p>

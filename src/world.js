@@ -10,6 +10,7 @@ export class World {
     this.grid = new Map();
     this.stamp = 0;
     this.bounds = { minX: -500, maxX: 500, minZ: -500, maxZ: 500 };
+    this.floor = 0; // base ground plane height; -Infinity for void (floating-island) levels
   }
 
   // box: {minX,minY,minZ,maxX,maxY,maxZ, active=true, tag}
@@ -51,7 +52,7 @@ export class World {
 
   // Highest walkable surface under a circle whose top is <= feetY + step.
   groundHeight(x, z, r, feetY, step = 0.65) {
-    let g = 0;
+    let g = this.floor === -Infinity ? -1e4 : this.floor;
     this.query(x - r, z - r, x + r, z + r, (b) => {
       if (b.maxY > feetY + step || b.maxY <= g) return;
       if (circleRect(x, z, r * 0.7, b)) g = b.maxY;
@@ -98,8 +99,8 @@ export class World {
   // Ray cast against boxes and the ground plane (y=0). Returns {t, nx, ny, nz} or null.
   raycast(ox, oy, oz, dx, dy, dz, maxT) {
     let best = maxT, nx = 0, ny = 0, nz = 0, found = false;
-    if (dy < -1e-6) {
-      const t = -oy / dy;
+    if (dy < -1e-6 && this.floor !== -Infinity) {
+      const t = (this.floor - oy) / dy;
       if (t >= 0 && t < best) { best = t; nx = 0; ny = 1; nz = 0; found = true; }
     }
     // Broad phase: walk the grid cells the ray passes through in XZ.

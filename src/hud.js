@@ -20,7 +20,8 @@ export class HUD {
       power: $('hud-power'), vignette: $('fx-damage'), pickup: $('fx-pickup'), hit: $('hitmarker'),
       dmgDirs: $('dmg-dirs'), card: $('level-card'), cardName: $('level-card-name'), cardSub: $('level-card-sub'),
       fps: $('hud-fps'), charge: $('hud-charge'), chargeFill: $('hud-charge-fill'), crosshair: $('crosshair'),
-      serious: $('fx-serious'),
+      serious: $('fx-serious'), secrets: $('hud-secrets-val'), timer: $('hud-timer'),
+      bombs: $('hud-bombs'), bombsVal: $('hud-bombs-val'),
     };
     this.cache = {};
     this.msgT = 0;
@@ -146,11 +147,24 @@ export class HUD {
       this.el.bossFill.style.width = `${Math.max(0, g.boss.hp / g.boss.maxHp) * 100}%`;
       this.set('bn', this.el.bossName, g.boss.def.name);
     } else this.set('bv', this.el.boss.style, 'none', 'display');
-    // serious damage
-    if (p.seriousDamage > 0) {
+    // power-up timers
+    const pws = [['damage', 'SERIOUS DAMAGE', p.seriousDamage], ['protect', 'SERIOUS PROTECTION', p.protectT], ['speed', 'SERIOUS SPEED', p.speedT]].filter((x) => x[2] > 0);
+    if (pws.length) {
       this.set('pw', this.el.power.style, 'block', 'display');
-      this.el.power.textContent = `SERIOUS DAMAGE ${Math.ceil(p.seriousDamage)}`;
+      this.set('pwh', this.el.power, pws.map(([k, n, t]) => `<div class="pw-${k}${t < 4 ? ' ending' : ''}">${n} ${Math.ceil(t)}</div>`).join(''), 'innerHTML');
     } else this.set('pw', this.el.power.style, 'none', 'display');
+    this.set('sec', this.el.secrets, `${g.stats.secrets} / ${g.stats.secretTotal}`);
+    this.set('bmb', this.el.bombsVal, String(p.bombs));
+    this.set('bmc', this.el.bombs, p.bombs > 0 ? 'vital bombs' : 'vital bombs none', 'className');
+    // survival countdown
+    const surv = g.encounters?.find((e) => e.state === 'active' && e.survive);
+    if (surv) {
+      const left = Math.max(0, surv.survive - surv.time);
+      this.set('tv', this.el.timer.style, 'block', 'display');
+      const txt = left > 0 ? `${Math.floor(left / 60)}:${String(Math.floor(left % 60)).padStart(2, '0')}<small>HOLD OUT</small>` : `CLEAR!<small>KILL THE STRAGGLERS</small>`;
+      this.set('tt', this.el.timer, txt, 'innerHTML');
+      this.set('tc', this.el.timer, left > 0 && left < 20 ? 'hurry' : '', 'className');
+    } else this.set('tv', this.el.timer.style, 'none', 'display');
     this.set('ser', this.el.serious.style, p.seriousDamage > 0 ? '1' : '0', 'opacity');
     // effects
     this.el.vignette.style.opacity = Math.min(1, p.hurtT * 1.2 + (hp <= 25 && p.alive ? 0.25 + Math.sin(performance.now() * 0.006) * 0.1 : 0) + (p.alive ? 0 : 0.8));

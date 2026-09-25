@@ -39,10 +39,12 @@
       <div id="hud-level"></div>
       <div class="kv"><span>SCORE</span><b id="hud-score-val">0</b></div>
       <div class="kv"><span>KILLS</span><b id="hud-kills-val">0 / 0</b></div>
+      <div class="kv"><span>SECRETS</span><b id="hud-secrets-val">0 / 0</b></div>
     </div>
     <div id="hud-fps"></div>
     <div id="hud-boss"><div id="hud-boss-name"></div><div class="bar"><div id="hud-boss-fill"></div></div></div>
     <div id="hud-power"></div>
+    <div id="hud-timer"></div>
     <div id="hud-msg"></div>
     <div id="hud-log"></div>
     <div id="hud-charge"><div id="hud-charge-fill"></div></div>
@@ -55,6 +57,10 @@
       <div id="hud-armor" class="vital armor">
         <svg class="icon" viewBox="0 0 24 24"><path d="M12 2l8 3v6c0 5.2-3.4 9.3-8 11-4.6-1.7-8-5.8-8-11V5l8-3z" fill="currentColor"/></svg>
         <b id="hud-armor-val">0</b>
+      </div>
+      <div id="hud-bombs" class="vital bombs" title="Serious Bombs (B)">
+        <svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="14" r="7.5" fill="currentColor"/><path d="M15 7l3-3M18 4l2 1M18 4l1-2" stroke="#ffd766" stroke-width="2" fill="none"/></svg>
+        <b id="hud-bombs-val">0</b>
       </div>
     </div>
     <div id="hud-bottom-right">
@@ -78,6 +84,7 @@
     <div id="menu-main" class="menu">
       <div class="logo"><span>SAM</span><small>SERIOUS ARENA MAYHEM</small></div>
       <div class="buttons">
+        <button data-act="continue" id="btn-continue" hidden>Continue</button>
         <button data-act="new">New Game</button>
         <button data-act="levels">Select Level</button>
         <button data-act="difficulty">Difficulty: <em id="diff-label">Normal</em></button>
@@ -121,6 +128,7 @@
         <tr><td>1 – 9, 0</td><td>Select weapon</td></tr>
         <tr><td>Mouse wheel</td><td>Cycle weapons</td></tr>
         <tr><td>Q</td><td>Previous weapon</td></tr>
+        <tr><td>B</td><td>Detonate a Serious Bomb (clears nearby enemies)</td></tr>
         <tr><td>Esc / P</td><td>Pause</td></tr>
       </table>
       <p class="hint">Tip: never stop moving. Circle-strafe, backpedal from kamikazes and use explosives on hordes. Rocket jumping works!</p>

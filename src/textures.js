@@ -384,7 +384,29 @@ export function getMaterials() {
   M.brass = new THREE.MeshStandardMaterial({ color: 0xc8a040, roughness: 0.35, metalness: 0.9 });
   M.wood = new THREE.MeshStandardMaterial({ map: toTex(woodTex(93, 128).color), roughness: 0.7 });
   M.redStone = std(stoneBlocks(94, 256, [160, 70, 50]));
-  M.lava = new THREE.MeshStandardMaterial({ color: 0x331100, emissive: 0xff5500, emissiveIntensity: 1.6, roughness: 1 });
+  // Molten lava: dark crust cells with glowing cracks; the texture scrolls at runtime.
+  const lavaN = makeNoise(95);
+  const lava = generate(256, (u, v) => {
+    const n = lavaN.fbm(u * 6, v * 6, 6, 5);
+    const w = lavaN.fbm(u * 3 + n, v * 3 - n, 3, 4);
+    const crack = 1 - Math.min(1, Math.abs(w - 0.5) * 9);
+    const hot = Math.max(crack, (1 - n) * 0.35);
+    return [clampByte(60 + hot * 195), clampByte(10 + hot * 120), clampByte(hot * 25), 1 - hot];
+  }, 2.0);
+  const lavaMap = toTex(lava.color);
+  M.lava = new THREE.MeshStandardMaterial({ map: lavaMap, emissiveMap: lavaMap, emissive: 0xffffff, emissiveIntensity: 1.8, roughness: 0.9 });
+  // Soft cloud sheet for the sky-island level.
+  const cloudN = makeNoise(96);
+  const { c: cc, ctx: cctx } = makeCanvas(256);
+  const cimg = cctx.createImageData(256, 256);
+  for (let y = 0; y < 256; y++) for (let x = 0; x < 256; x++) {
+    const n = cloudN.fbm(x / 256 * 4, y / 256 * 4, 4, 5);
+    const a = Math.max(0, Math.min(1, (n - 0.42) * 3));
+    const i = (y * 256 + x) * 4;
+    cimg.data[i] = cimg.data[i + 1] = cimg.data[i + 2] = 255; cimg.data[i + 3] = a * 255;
+  }
+  cctx.putImageData(cimg, 0, 0);
+  M.cloud = new THREE.MeshBasicMaterial({ map: toTex(cc), transparent: true, depthWrite: false, fog: true, opacity: 0.9 });
 
   M._sprites = {
     glow: toTex(radialSprite(64, [[0, 'rgba(255,255,255,1)'], [0.3, 'rgba(255,255,255,0.6)'], [1, 'rgba(255,255,255,0)']]), { repeat: false }),

@@ -105,10 +105,25 @@ export class Pickups {
         return true;
       }
       case 'powerup': {
-        pl.seriousDamage = 30;
         g.audio.play('powerup');
-        hud.message('SERIOUS DAMAGE!', 3, 'big red');
-        hud.pickupFlash('rgba(255,60,80,0.3)');
+        if (p.sub === 'protect') {
+          pl.protectT = 20;
+          hud.message('SERIOUS PROTECTION!', 3, 'big');
+          hud.pickupFlash('rgba(255,210,80,0.3)');
+        } else if (p.sub === 'speed') {
+          pl.speedT = 20;
+          hud.message('SERIOUS SPEED!', 3, 'big');
+          hud.pickupFlash('rgba(80,220,255,0.3)');
+        } else if (p.sub === 'bomb') {
+          if (pl.bombs >= 3) return false;
+          pl.bombs++;
+          hud.message('SERIOUS BOMB! Press B to detonate', 3.5, 'big');
+          hud.pickupFlash('rgba(255,255,255,0.3)');
+        } else {
+          pl.seriousDamage = 30;
+          hud.message('SERIOUS DAMAGE!', 3, 'big red');
+          hud.pickupFlash('rgba(255,60,80,0.3)');
+        }
         return true;
       }
     }

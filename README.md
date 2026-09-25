@@ -18,21 +18,25 @@ Open http://localhost:8080, click **New Game**, then WASD + mouse, 1–0 for wea
 
 ## Features
 
-- 4 levels (day temple, dusk oasis, moonlit Karnak, blood-red Great Pyramid) with wave-based arena encounters,
-  locking doors, checkpoints and an exit portal
+- 7 levels: day temple, dusk oasis, moonlit Karnak, the blood-red Great Pyramid (boss), a **sandstorm survival siege**,
+  the **lava-filled underworld** with jump pads, and **floating sky islands** over a cloud sea (falls are fatal) with a final boss
+- Wave-based arena encounters, timed survival holds, locking doors, checkpoints, secrets and exit portals
 - 10 weapons: knife, (dual) revolvers, pump and double shotguns, tommygun, minigun, rocket and grenade launchers,
   laser gun and a chargeable cannon
-- 8 enemy types plus the Colossus boss, with individual AI (charging, leaping, flying/diving, burst-firing, homing
+- Power-ups: Serious Damage, Serious Protection, Serious Speed and the screen-clearing Serious Bomb (B)
+- 8 enemy types plus two bosses (the Colossus and Ra, the Sun Colossus), with individual AI (charging, leaping, flying/diving, burst-firing, homing
   rockets, summoning)
 - Gibs, blood decals, bloom, ACES tone mapping, shadows, a sky-baked environment map, and pooled lights and particles
 - WebAudio SFX (including the kamikaze scream) and a generative music score that reacts to combat
-- 5 difficulties, options (sensitivity, FOV, quality presets, volume) and saved progress
+- 5 difficulties, options (sensitivity, FOV, quality presets, volume), saved progress and Continue
+- Hardened runtime: frame-error recovery, WebGL context-loss handling, horde cap, NaN guards, and free-mouse fallback when pointer lock is blocked
 
 ## Test
 
 ```bash
 npm install
-npm test   # unit + headless smoke (15 scenarios) + a bot that plays all 4 levels to victory
+npm test   # unit + headless smoke + a bot that plays all 7 levels to victory
+LEVEL=5 node tests/playthrough.mjs   # bot-play a single level
 ```
 
 Unofficial fan project; all art and audio is original and procedural.

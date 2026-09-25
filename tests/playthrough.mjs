@@ -20,7 +20,10 @@ await page.evaluate(() => {
     if (!best) return;
     // periodically relocate near the target inside its arena (simulates the player hunting it down)
     const los = g.world.lineOfSight(p.pos.x, p.eyeY, p.pos.z, best.pos.x, best.pos.y + best.def.h * 0.5, best.pos.z);
-    if (los) window.lastSeen = t;
+    // "seeing" isn't enough: only count it if the target is actually losing health
+    if (best !== window.lastTarget || best.hp < (window.lastHp ?? Infinity)) window.lastProgress = t;
+    window.lastTarget = best; window.lastHp = best.hp;
+    if (los && t - (window.lastProgress || 0) < 5) window.lastSeen = t;
     if (t - (window.lastHunt || 0) > 4 && (bd > 25 || t - (window.lastSeen || 0) > 3)) {
       window.lastHunt = t;
       const a = Math.random() * Math.PI * 2;
@@ -50,7 +53,10 @@ await page.evaluate(() => {
   };
 });
 
-for (let li = 0; li < 4; li++) {
+const levelCount = await page.evaluate(() => window.__game.levelCount);
+const only = process.env.LEVEL ? Number(process.env.LEVEL) - 1 : -1;
+for (let li = 0; li < levelCount; li++) {
+  if (only >= 0 && li !== only) continue;
   const t0 = Date.now();
   try {
     const res = await page.evaluate(async (li) => {
@@ -73,7 +79,7 @@ for (let li = 0; li < 4; li++) {
           return { ok: false, why: `encounter ${enc.id} stuck at wave ${enc.wave}/${enc.waves.length}; player ${pp.x.toFixed(1)},${pp.y.toFixed(1)},${pp.z.toFixed(1)}; alive: ${alive.join(' ')}; queue ${g.spawnQueue.length}` };
         }
         log.push(`${enc.id}:${took.toFixed(0)}s`);
-        for (const d of enc.open) if (g.level.doors[d].state === 'closed') return { ok: false, why: `door ${d} stayed closed` };
+        for (const d of enc.open || []) if (g.level.doors[d].state === 'closed') return { ok: false, why: `door ${d} stayed closed` };
       }
       if (g.exit) {
         // walk (really move) from the last arena into the exit portal
