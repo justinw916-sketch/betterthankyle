@@ -51,7 +51,7 @@
 </header>
 <nav>
   <a href="#play">Play</a><a href="#controls">Controls</a><a href="#weapons">Arsenal</a><a href="#powerups">Power-ups</a><a href="#enemies">Bestiary</a>
-  <a href="#levels">Levels</a><a href="#arch">Architecture</a><a href="#tech">Tech</a><a href="#tests">Testing</a><a href="#tuning">Tuning</a>
+  <a href="#levels">Levels</a><a href="#arena">Arena</a><a href="#arch">Architecture</a><a href="#tech">Tech</a><a href="#tests">Testing</a><a href="#tuning">Tuning</a>
 </nav>
 <main>
 
@@ -90,6 +90,7 @@ docker build -t sam . ; docker run --rm -p 8080:80 sam</pre>
     <tr><td><kbd>Space</kbd></td><td>Jump</td><td>Rocket jumping works (your own splash damage is reduced 65%)</td></tr>
     <tr><td><kbd>Shift</kbd></td><td>Walk</td><td>45% speed</td></tr>
     <tr><td><kbd>1</kbd>–<kbd>9</kbd>, <kbd>0</kbd></td><td>Select weapon</td><td>Mouse wheel cycles; <kbd>Q</kbd> = previous weapon</td></tr>
+    <tr><td>Gamepad</td><td>Full controller play</td><td>Left stick move · right stick look · triggers fire · A jump · LB/RB/X switch weapon · B previous · Y bomb · Start pause · A confirms menus</td></tr>
     <tr><td><kbd>B</kbd></td><td>Serious Bomb</td><td>Destroys every non-boss enemy within ~110 m; boss takes 3000</td></tr>
     <tr><td><kbd>Esc</kbd> / <kbd>P</kbd></td><td>Pause</td><td>Click the canvas to recapture the mouse. If the browser refuses mouse capture, free-mouse look turns on automatically</td></tr>
   </table></div>
@@ -146,6 +147,8 @@ docker build -t sam . ; docker run --rm -p 8080:80 sam</pre>
       <p>Scorpion-bodied gunner. Plants itself at ~26 m and hoses you with twin guns, and its tail stings anything close. Use rockets.</p></div>
     <div class="card"><h4>Winged Harpy</h4><span class="tag">40 HP</span><span class="tag">flying</span>
       <p>Circles overhead, spits venom, then dives for a claw strike and climbs away. Track it with the tommygun.</p></div>
+    <div class="card"><h4>Lava Golem</h4><span class="tag">380 HP</span><span class="tag">splits on death</span>
+      <p>A basalt brute with a molten core. Lobs arcing globs of magma, slams anything close, and is immune to lava. When destroyed it crumbles into <b>three golemlings</b> (60 HP each, fast melee).</p></div>
     <div class="card"><h4>Biomechanoid</h4><span class="tag">700 HP</span><span class="tag">homing rockets</span>
       <p>Heavy walker firing paired homing rockets every ~3 s. Break line of sight behind pillars and let the rockets hit stone.</p></div>
     <div class="card"><h4>Ra, the Sun Colossus (final boss)</h4><span class="tag">22 000 HP</span><span class="tag">sun nova</span>
@@ -176,6 +179,16 @@ docker build -t sam . ; docker run --rm -p 8080:80 sam</pre>
   </div>
   <p><b>Continue</b> on the main menu resumes from the last level you finished, keeping your arsenal. Weapons, ammo, bombs, health and armor carry between levels. Clearing an arena saves a <b>checkpoint</b>; dying offers a respawn there.
     Choosing a later level from <i>Select Level</i> grants a fair starting loadout.</p>
+</section>
+
+<section id="arena">
+  <h2>Endless Arena &amp; scoring</h2>
+  <p><b>Endless Arena</b> (main menu) drops you into a walled colosseum with a central dais, jump pads, lava pits and corner towers.
+    Waves never stop: each wave's budget grows by 5 points, tougher enemies unlock as you go (skeletons from wave 2, harpies 3, bulls 4,
+    golems 5, arachnids 6, biomechs 8), and <b>every 10th wave brings a Colossus</b>. Ammo, health and armor drop every wave, with a power-up every 3rd wave and a Serious Bomb every 5th.
+    Your best wave and score are saved and shown on the menu.</p>
+  <p><b>Kill combos</b> work in every mode. Kills landed within 1.8 s of each other build a combo; every 4 chained kills raises the score multiplier (up to ×5).
+    Your best combo appears on the level results screen.</p>
 </section>
 
 <section id="arch">

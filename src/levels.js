@@ -383,7 +383,8 @@ export const LEVELS = [
           { spawn: [S('skeleton', 6, 0, -62, 25), S('gnasher', 8, 0, -60, 25)] },
           { when: 3, spawn: [S('harpy', 8, 0, -40, 20), S('gunner', 8, 0, -64, 28)] },
           { when: 2, spawn: [S('kamikaze', 14, -28, -64, 5), S('kamikaze', 14, 28, -64, 5), S('bull', 3, 0, -62, 20)], msg: 'Across the fire!' },
-          { when: 2, spawn: [S('biomech', 2, 0, -62, 20), S('skeleton', 6, 0, -60, 25)], items: [['health', 'large', 0, -14], ['ammo', 'rockets', 4, -14]] },
+          { when: 2, spawn: [S('golem', 2, 0, -62, 20), S('skeleton', 6, 0, -60, 25)], msg: 'Lava golems rise from the fire!', items: [['health', 'large', 0, -14], ['ammo', 'rockets', 4, -14]] },
+          { when: 2, spawn: [S('biomech', 2, 0, -62, 20), S('gnasher', 8, 0, -60, 25)] },
         ],
       });
 
@@ -410,7 +411,7 @@ export const LEVELS = [
         message: 'Judgement is passed.', checkpoint: { x: 0, z: -104, yaw: 0 },
         waves: [
           { spawn: [S('arachnid', 2, 0, -158, 30), S('gunner', 8, 0, -155, 35)] },
-          { when: 3, spawn: [S('bull', 6, 0, -158, 35), S('gnasher', 10, 0, -150, 35)] },
+          { when: 3, spawn: [S('bull', 6, 0, -158, 35), S('golem', 3, 0, -155, 30)] },
           { when: 3, spawn: [S('kamikaze', 16, -40, -160, 4), S('kamikaze', 16, 40, -160, 4), S('harpy', 8, 0, -129, 30)], msg: 'The damned pour in!' },
           { when: 3, spawn: [S('biomech', 3, 0, -158, 35), S('skeleton', 8, 0, -150, 35)], items: [['ammo', 'rockets', -6, -102], ['health', 'large', 6, -102]] },
           { when: 2, spawn: [S('kamikaze', 20, 0, -160, 30), S('arachnid', 2, 0, -158, 30), S('harpy', 6, 0, -129, 30)], items: [['armor', 'medium', 0, -102]] },
@@ -502,3 +503,29 @@ export function makeWater(list, night) {
   }
   return g;
 }
+
+// ---------------------------------------------------------------------- ENDLESS ARENA
+// A single colosseum that spawns procedurally escalating waves forever (see Game.nextArenaWave).
+export const ARENA = {
+  id: 'arena', name: 'Endless Arena', subtitle: 'How long can you last?', theme: 'dusk', music: 1, seed: 99,
+  loadout: { owned: ['knife', 'revolver', 'shotgun', 'dshotgun', 'tommy', 'minigun', 'rocket', 'grenade', 'laser', 'cannon'], ammo: { shells: 50, bullets: 250, rockets: 15, grenades: 10, cells: 150, cannonballs: 3 }, armor: 50 },
+  build(b) {
+    const M = b.M;
+    b.spawn = { x: 0, z: 34, yaw: 0 };
+    b.arena(-42, -42, 42, 42, { h: 11, wall: M.hieroglyph, floor: M.tiles });
+    b.platform(0, 0, 12, 12, 2.5, M.sandstone, 'nsew');
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2 + Math.PI / 8;
+      b.pillar(Math.cos(a) * 25, Math.sin(a) * 25, 9, 1.1);
+    }
+    for (const [x, z, st] of [[-34, -34, 'e'], [34, -34, 'w'], [-34, 34, 'e'], [34, 34, 'w']]) b.platform(x, z, 8, 8, 3.5, M.sandstone, st);
+    b.lava(-4, -24, 4, -18); b.lava(-4, 18, 4, 24);
+    b.jumpPad(-14, 0, 0, -4, 0, 2.5); b.jumpPad(14, 0, 0, 4, 0, 2.5);
+    for (const [x, z] of [[-40, 0], [40, 0], [0, -40], [0, 40]]) b.brazier(x, z);
+    b.pickup('powerup', 'damage', 0, 0, 2.5);
+    for (const [x, z] of [[-34, -34], [34, -34], [-34, 34], [34, 34]]) b.pickup('ammo', 'rockets', x, z, 3.5);
+    b.pickup('health', 'large', -20, 0); b.pickup('health', 'large', 20, 0);
+    b.pickup('ammo', 'bullets', 0, -30); b.pickup('ammo', 'shells', 0, 30);
+    b.encounter({ id: 'ARENA', area: [-40, -40, 40, 40], endless: true, waves: [] });
+  },
+};

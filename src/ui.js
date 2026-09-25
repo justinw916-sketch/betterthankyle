@@ -28,6 +28,10 @@ export class UI {
     this.current = name;
     if (name === 'levels') this.buildLevels();
     if (name === 'main') this.refreshContinue();
+    if (name === 'dead') {
+      const r = this.game.arenaResult;
+      $('dead-info').textContent = r ? `Reached wave ${r.wave} with ${r.score} points.${r.isBest ? ' NEW BEST!' : ` Best: wave ${r.best.wave}.`}` : 'Even serious heroes fall. Get back in there.';
+    }
     if (name === 'options') this.syncOptions();
   }
 
@@ -44,11 +48,12 @@ export class UI {
   async act(a, btn) {
     const g = this.game;
     // request pointer lock synchronously while we still hold the click's user activation
-    if (['new', 'continue', 'level', 'resume', 'restart', 'respawn', 'next'].includes(a)) g.input.lock();
+    if (['new', 'continue', 'arena', 'level', 'resume', 'restart', 'respawn', 'next'].includes(a)) g.input.lock();
     await g.ensureAudio();
     switch (a) {
       case 'new': g.newGame(0); break;
       case 'continue': g.continueGame(); break;
+      case 'arena': g.startArena(); break;
       case 'levels': this.show('levels', true); break;
       case 'level': g.newGame(Number(btn.dataset.level)); break;
       case 'difficulty':
@@ -67,6 +72,8 @@ export class UI {
   }
 
   refreshContinue() {
+    const best = this.game.arenaBest;
+    $('btn-arena').innerHTML = `Endless Arena<small>${best.wave ? `Best: wave ${best.wave} · ${best.score} pts` : 'Survive escalating waves'}</small>`;
     const btn = $('btn-continue');
     const s = this.game.savedRun;
     btn.hidden = !s;
@@ -132,6 +139,7 @@ export class UI {
     this.statRows($('complete-stats'), [
       ['Kills', `${stats.kills} / ${stats.total}`],
       ['Secrets', `${stats.secrets} / ${stats.secretTotal}`],
+      ['Best combo', stats.bestCombo || 0],
       ['Time', `${m}:${String(s).padStart(2, '0')}`],
       ['Score', stats.score],
       ['Difficulty', DIFFICULTIES[this.game.settings.difficulty].name],

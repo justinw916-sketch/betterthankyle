@@ -13,6 +13,7 @@ const TYPES = {
   chain: { grav: 3, r: 0.25, life: 4, spriteColor: 0x99aaff, spriteSize: 0.7, ball: true, trail: 'spark' },
   bullet: { grav: 0, r: 0.12, life: 3, bolt: 0xffdd66, spriteColor: 0xffcc55, spriteSize: 0.35 },
   mrocket: { grav: 0, r: 0.3, life: 7, explode: true, homing: 1.3, trail: 'rocket', spriteColor: 0xff4422, spriteSize: 1.0 },
+  magma: { grav: 12, r: 0.4, life: 5, explode: true, spriteColor: 0xff6611, spriteSize: 1.4, trail: 'fire' },
   bossfire: { grav: 0, r: 0.8, life: 7, explode: true, spriteColor: 0xff5511, spriteSize: 3.2, trail: 'fire' },
   spit: { grav: 4, r: 0.25, life: 4, spriteColor: 0xcc44ff, spriteSize: 0.8, trail: 'spit' },
 };

@@ -164,7 +164,7 @@ export class Weapons {
 
     const w = this.def();
     this.cool -= dt;
-    const trigger = input.mouse(0);
+    const trigger = input.mouse(0) || input.padFire;
     const dmgMul = player.seriousDamage > 0 ? 4 : 1;
 
     // revolver reload

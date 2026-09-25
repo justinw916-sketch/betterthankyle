@@ -228,6 +228,34 @@ await step('new mechanics: lava, jump pads, bomb, protection, speed, secrets, vo
   assert(r.void[0] === false && r.void[1] === 'dead', 'void fall ' + r.void);
 });
 
+await step('endless arena, golem split, kill combos, gamepad', async () => {
+  const r = await G(() => {
+    const g = __game; const out = {};
+    g.startArena(); g.player.god = true; g.simulate(1);
+    const e = g.encounters[0];
+    for (let i = 0; i < 14; i++) { for (const en of g.enemies.list) if (en.alive) en.damage(1e6, null, 'bullet'); g.simulate(1.5); }
+    out.wave = e.waveNum; out.combo = g.stats.bestCombo;
+    g.startLevel(5); g.player.god = true; g.player.place(0, -20, 0);
+    const gm = g.debugSpawn('golem', 14); g.simulate(1); gm.damage(1e6, null, 'bullet'); g.simulate(0.2);
+    out.golemlings = g.enemies.list.filter((x) => x.alive && x.type === 'golemling').length;
+    const fake = { connected: true, id: 'Test Pad', axes: [1, 0, 0, 0], buttons: Array.from({ length: 17 }, () => ({ pressed: false, value: 0 })) };
+    const real = navigator.getGamepads.bind(navigator);
+    navigator.getGamepads = () => [fake];
+    g.startLevel(0); g.player.god = true; const x0 = g.player.pos.x; g.simulate(0.6); out.padMove = g.player.pos.x - x0;
+    fake.axes = [0, 0, 0.9, 0]; const y0 = g.player.yaw; g.simulate(0.3); out.padLook = y0 - g.player.yaw;
+    navigator.getGamepads = real;
+    g.startArena(); g.simulate(1.5); g.player.god = false; g.player.damage(1e4, null); g.simulate(3);
+    out.dead = g.state; out.best = g.arenaBest.wave;
+    return out;
+  });
+  console.log('    ', JSON.stringify(r));
+  assert(r.wave >= 4, 'arena waves did not escalate: ' + r.wave);
+  assert(r.combo >= 3, 'no combo registered');
+  assert(r.golemlings === 3, 'golem did not split: ' + r.golemlings);
+  assert(r.padMove > 2 && r.padLook > 0.3, 'gamepad input ignored');
+  assert(r.dead === 'dead' && r.best >= 1, 'arena best not recorded');
+});
+
 const perf = await G(async () => {
   const g = __game; g.startLevel(2); g.player.god = true;
   await new Promise((r) => setTimeout(r, 500));

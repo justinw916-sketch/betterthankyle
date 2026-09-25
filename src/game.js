@@ -9,7 +9,7 @@ import { Input } from './input.js';
 import { AudioSystem } from './audio.js';
 import { getMaterials } from './textures.js';
 import { LevelBuilder } from './levelbuilder.js';
-import { LEVELS, THEMES, makeWater } from './levels.js';
+import { LEVELS, THEMES, ARENA, makeWater } from './levels.js';
 import { Player, PLAYER } from './player.js';
 import { Weapons } from './weapons.js';
 import { EnemyManager, ENEMY_DEFS } from './enemies.js';
@@ -32,6 +32,13 @@ export const DIFFICULTIES = [
 ];
 
 const MAX_ALIVE = 90;
+const getDef = (i) => (i === 'arena' ? ARENA : LEVELS[i]);
+
+// Endless-arena wave director: [type, first wave it appears, budget cost]
+const ARENA_POOL = [
+  ['kamikaze', 1, 1], ['gnasher', 1, 1.2], ['gunner', 1, 1.5], ['skeleton', 2, 3], ['harpy', 3, 2],
+  ['bull', 4, 6], ['golem', 5, 9], ['arachnid', 6, 12], ['biomech', 8, 14],
+];
 const DEFAULT_SETTINGS = { sensitivity: 1.0, invertY: false, fov: 90, quality: 'high', volume: 0.8, music: 0.55, difficulty: 2, showFps: false };
 
 const SKY_VERT = /* glsl */`
@@ -164,6 +171,7 @@ export class Game {
       this.hud.message('Graphics device was reset — restoring...', 5, 'big red');
     });
     canvas.addEventListener('webglcontextrestored', () => { this.contextLost = false; location.reload(); });
+    this.input.onPad = (id) => this.hud.log('Controller connected: ' + id.slice(0, 40), '#9fe0ff');
     this.input.onFallback = () => this.hud.log('Mouse capture unavailable: free-mouse look enabled', '#9fe0ff');
     this.input.onLockChange = (locked) => {
       if (!locked && this.state === 'playing') this.pause();
@@ -273,14 +281,22 @@ export class Game {
     this.ui?.hideAll();
     this.hud.show(true);
     this.input.lock();
-    const L = LEVELS[i];
-    document.getElementById('hud-level').textContent = `${i + 1}. ${L.name}`;
+    const L = getDef(i);
+    this.arenaBestCache = this.arenaBest.wave;
+    document.getElementById('hud-level').textContent = typeof i === 'number' ? `${i + 1}. ${L.name}` : L.name;
     if (!checkpoint) this.hud.levelCard(L.name, L.subtitle);
+    this.combo = 0; this.lastKillT = -99;
+    this.hints = i === 0 && !checkpoint ? [
+      [5, 'WASD move · Mouse aim · Click fire · Space jump'],
+      [10, 'Never stop moving: circle-strafe around the horde!'],
+      [15, '1–0 switch weapons · Q previous · B detonates Serious Bombs'],
+      [20, 'Chain kills quickly for a COMBO score multiplier'],
+    ] : null;
     this.audio.startMusic(L.music);
   }
 
   loadLevel(i, checkpoint = null, warmup = false) {
-    const def = LEVELS[i];
+    const def = getDef(i);
     this.levelIndex = i;
     this.levelDef = def;
     // teardown
@@ -316,7 +332,7 @@ export class Game {
     this.padCool = 0; this.lavaT = 0;
     this.stats.total = 0;
     for (const e of this.encounters) for (const w of e.waves) for (const s of w.spawn) this.stats.total += s[1];
-    this.stats.kills = 0; this.stats.time = 0; this.stats.levelScoreStart = this.stats.score;
+    this.stats.kills = 0; this.stats.time = 0; this.stats.levelScoreStart = this.stats.score; this.stats.bestCombo = 0;
 
     // player & inventory
     this.player.reset();
@@ -457,6 +473,11 @@ export class Game {
       for (const en of this.enemies.list) if (en.alive && en.encounter === e.id) alive++;
       for (const q of this.spawnQueue) if (q.enc === e.id) alive++;
       e.waveT -= dt;
+      if (e.endless) {
+        // Endless arena: next wave once the field is (nearly) clear
+        if (e.waveT <= 0 && alive <= 2) this.nextArenaWave(e);
+        continue;
+      }
       if (e.survive) {
         // survival: waves arrive on a clock; done once time is up and the stragglers are dead
         e.time += dt;
@@ -474,6 +495,64 @@ export class Game {
         }
       } else if (alive === 0 && e.waveT <= 0) this.finishEncounter(e);
     }
+  }
+
+  startArena() {
+    this.carry = null;
+    this.stats.score = 0;
+    this.player.bombs = 0;
+    this.startLevel('arena');
+  }
+
+  get arenaBest() {
+    try { return JSON.parse(localStorage.getItem('sam.arena') || 'null') || { wave: 0, score: 0 }; } catch { return { wave: 0, score: 0 }; }
+  }
+
+  nextArenaWave(e) {
+    const n = (e.waveNum || 0) + 1;
+    e.waveNum = n;
+    e.waveT = 6;
+    const pool = ARENA_POOL.filter(([, from]) => n >= from);
+    let budget = 8 + n * 5;
+    const counts = {};
+    if (n % 10 === 0) { counts.boss = 1; budget *= 0.4; }
+    while (budget > 0) {
+      const [type, , cost] = pool[Math.floor(Math.random() * pool.length)];
+      counts[type] = (counts[type] || 0) + (type === 'kamikaze' ? 4 : 1);
+      budget -= cost * (type === 'kamikaze' ? 4 : 1);
+    }
+    // spread each type across the four walls
+    const gates = [[0, -36], [0, 36], [-36, 0], [36, 0]];
+    const spawn = [];
+    for (const [type, c] of Object.entries(counts)) {
+      if (type === 'boss') { spawn.push(['boss', 1, 0, -28, 0]); continue; }
+      const per = Math.ceil(c / 2);
+      for (let k = 0, left = c; left > 0; k++) {
+        const g = gates[Math.floor(Math.random() * 4)];
+        const m = Math.min(per, left);
+        spawn.push([type, m, g[0], g[1], 8]);
+        left -= m;
+      }
+    }
+    for (const s of spawn) this.stats.total += s[1];
+    const rnd = () => (Math.random() - 0.5) * 50;
+    const ammo = ['shells', 'bullets', 'rockets', 'grenades', 'cells', 'cannonballs'];
+    const items = [['ammo', ammo[n % 6], rnd(), rnd()], ['ammo', ammo[(n + 3) % 6], rnd(), rnd()], ['health', n % 2 ? 'medium' : 'large', rnd(), rnd()]];
+    if (n % 2 === 0) items.push(['armor', 'medium', rnd(), rnd()]);
+    if (n % 3 === 0) items.push(['powerup', ['damage', 'protect', 'speed'][(n / 3) % 3], rnd(), rnd()]);
+    if (n % 5 === 0) items.push(['powerup', 'bomb', rnd(), rnd()]);
+    this.spawnWave(e, { spawn, items, msg: n % 10 === 0 ? `WAVE ${n}: THE COLOSSUS!` : `WAVE ${n}` });
+    if (n > 1) { this.stats.score += n * 100; this.audio.play('secret'); }
+  }
+
+  recordArena() {
+    const e = this.encounters.find((x) => x.endless);
+    if (!e) return null;
+    const run = { wave: e.waveNum || 0, score: this.stats.score };
+    const best = this.arenaBest;
+    const isBest = run.wave > best.wave || (run.wave === best.wave && run.score > best.score);
+    if (isBest) try { localStorage.setItem('sam.arena', JSON.stringify(run)); } catch { /* ignore */ }
+    return { ...run, isBest, best: isBest ? run : best };
   }
 
   finishEncounter(e) {
@@ -543,7 +622,7 @@ export class Game {
         }
       }
       for (const e of this.enemies.list) {
-        if (e.alive && !e.def.fly && !e.def.boss && inL(e.pos.x, e.pos.z) && e.pos.y < L.y + 0.35) e.damage(18 * dt, null, 'fire');
+        if (e.alive && !e.def.fly && !e.def.boss && e.def.model !== 'golem' && e.type !== 'golem' && inL(e.pos.x, e.pos.z) && e.pos.y < L.y + 0.35) e.damage(18 * dt, null, 'fire');
       }
     }
     // falling off a sky island
@@ -620,6 +699,7 @@ export class Game {
       else fx.blood(hx, hy, hz, d.x * 0.6, 0.3, d.z * 0.6, opts.pellet ? 3 : 6, e.def.blood);
       if (e.type === 'biomech' || e.def.boss || e.type === 'arachnid') fx.sparks(hx, hy, hz, -d.x, -d.y, -d.z, 3);
       this.hud.hitmarker(!e.alive);
+      this.audio.play('hitmarker', { vol: 0.35, group: 'hit', maxVoices: 2, jitter: false });
       end = { x: hx, y: hy, z: hz };
     } else if (wh) {
       const hx = o.x + d.x * wh.t, hy = o.y + d.y * wh.t, hz = o.z + d.z * wh.t;
@@ -683,7 +763,17 @@ export class Game {
 
   onEnemyKilled(e, selfDestruct) {
     this.stats.kills++;
-    if (!selfDestruct) this.stats.score += e.def.score;
+    if (!selfDestruct) {
+      // kill combos: chain kills within 1.8 s to raise the score multiplier (up to x5)
+      const now = this.stats.time;
+      this.combo = now - (this.lastKillT ?? -99) < 1.8 ? (this.combo || 0) + 1 : 1;
+      this.lastKillT = now;
+      const mult = Math.min(5, 1 + Math.floor((this.combo - 1) / 4));
+      this.stats.score += e.def.score * mult;
+      this.stats.bestCombo = Math.max(this.stats.bestCombo || 0, this.combo);
+      if (this.combo >= 3) this.hud.combo(this.combo, mult);
+      if (this.combo > 0 && this.combo % 4 === 1 && this.combo > 1) this.audio.play('combo');
+    }
     if (e.summoned) this.stats.total++;
   }
 
@@ -704,6 +794,7 @@ export class Game {
 
   onPlayerDeath() {
     this.deadT = 0;
+    this.arenaResult = this.levelIndex === 'arena' ? this.recordArena() : null;
     this.hud.message('YOU DIED', 3, 'big red');
   }
 
@@ -723,6 +814,7 @@ export class Game {
   }
 
   respawn() {
+    if (this.levelIndex === 'arena') return this.startArena();
     if (this.checkpoint) this.startLevel(this.levelIndex, this.checkpoint);
     else {
       this.carry = this.levelStart ? { health: this.levelStart.health, armor: this.levelStart.armor, weapons: this.levelStart.weapons } : null;
@@ -732,6 +824,7 @@ export class Game {
   }
 
   quitToMenu() {
+    if (this.levelIndex === 'arena' && this.player.alive) this.recordArena();
     // restore the temple as the attract-mode backdrop
     if (this.levelIndex !== 0) this.loadLevel(0, null, true);
     this.state = 'menu';
@@ -795,6 +888,12 @@ export class Game {
     this.skyUniforms.time.value = this.time;
     const input = this.input;
     input.active = this.state === 'playing';
+    input.pollPad();
+    // controller menu shortcuts: A confirms, Start resumes
+    if (this.state !== 'playing' && this.state !== 'loading' && (input.wasPressed('PadA') || (this.state === 'paused' && input.wasPressed('Escape')))) {
+      const act = { menu: this.savedRun ? 'continue' : 'new', paused: 'resume', dead: 'respawn', complete: 'next', victory: 'quit' }[this.state];
+      if (act && this.ui && (this.state !== 'menu' || this.ui.current === 'main')) this.ui.act(act);
+    }
     if (this.state === 'playing') {
       this.stats.time += dt;
       if (input.wasPressed('Escape') || input.wasPressed('KeyP')) this.pause();
@@ -810,6 +909,13 @@ export class Game {
       this.updateLevelFx(dt);
       this.updateWeather(dt);
       if (input.wasPressed('KeyB')) this.seriousBomb();
+      // low-health heartbeat
+      if (this.player.alive && this.player.health <= 25) {
+        this.heartT = (this.heartT || 0) - dt;
+        if (this.heartT <= 0) { this.heartT = 0.85; this.audio.play('heartbeat', { vol: 0.9, jitter: false }); }
+      }
+      // first-level tutorial hints
+      while (this.hints && this.hints.length && this.stats.time >= this.hints[0][0]) this.hud.log(this.hints.shift()[1], '#ffe9a0');
       this.effects.update(dt, this.camera);
       this.hud.update(dt);
       // intensity for music: how much action is going on

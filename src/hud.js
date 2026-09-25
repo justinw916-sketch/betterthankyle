@@ -107,6 +107,14 @@ export class HUD {
     this.el.card.classList.add('show');
   }
 
+  combo(n, mult) {
+    const el = document.getElementById('hud-combo');
+    document.getElementById('hud-combo-n').textContent = n;
+    document.getElementById('hud-combo-m').textContent = mult > 1 ? `×${mult} SCORE` : '';
+    el.classList.remove('pop'); void el.offsetWidth; el.className = 'show pop';
+    this.comboT = 1.8;
+  }
+
   weaponChanged() {
     const w = this.game.weapons.def();
     if (w) this.log(w.name, '#9fe0ff');
@@ -157,8 +165,12 @@ export class HUD {
     this.set('bmb', this.el.bombsVal, String(p.bombs));
     this.set('bmc', this.el.bombs, p.bombs > 0 ? 'vital bombs' : 'vital bombs none', 'className');
     // survival countdown
-    const surv = g.encounters?.find((e) => e.state === 'active' && e.survive);
-    if (surv) {
+    const surv = g.encounters?.find((e) => e.state === 'active' && (e.survive || e.endless));
+    if (surv && surv.endless) {
+      this.set('tv', this.el.timer.style, 'block', 'display');
+      this.set('tt', this.el.timer, `WAVE ${surv.waveNum || 1}<small>BEST WAVE ${g.arenaBestCache ?? 0}</small>`, 'innerHTML');
+      this.set('tc', this.el.timer, '', 'className');
+    } else if (surv) {
       const left = Math.max(0, surv.survive - surv.time);
       this.set('tv', this.el.timer.style, 'block', 'display');
       const txt = left > 0 ? `${Math.floor(left / 60)}:${String(Math.floor(left % 60)).padStart(2, '0')}<small>HOLD OUT</small>` : `CLEAR!<small>KILL THE STRAGGLERS</small>`;
@@ -169,6 +181,7 @@ export class HUD {
     // effects
     this.el.vignette.style.opacity = Math.min(1, p.hurtT * 1.2 + (hp <= 25 && p.alive ? 0.25 + Math.sin(performance.now() * 0.006) * 0.1 : 0) + (p.alive ? 0 : 0.8));
     if (this.pickupT > 0) { this.pickupT -= dt; if (this.pickupT <= 0) this.el.pickup.style.opacity = 0; }
+    if (this.comboT > 0) { this.comboT -= dt; if (this.comboT <= 0) document.getElementById('hud-combo').className = ''; }
     if (this.hitT > 0) { this.hitT -= dt; if (this.hitT <= 0) this.el.hit.className = ''; }
     if (this.msgT > 0) { this.msgT -= dt; if (this.msgT <= 0) this.el.msg.className = ''; }
     // fps

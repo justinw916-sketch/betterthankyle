@@ -324,6 +324,32 @@ export function makeEnemyModel(type, variant = null) {
       r.torso = torso;
       return { root, rig: r, height: 4.6 };
     }
+    case 'golem': {
+      // Hulking basalt brute with molten cracks glowing between the rocks
+      const root = new THREE.Group();
+      const body = pivot(root);
+      const r = { body };
+      const rock = G.basalt, magma = G.lava;
+      const torso = pivot(body, 0, 1.7, 0);
+      const chest = part(new THREE.IcosahedronGeometry(1.0, 0), rock, 0, 0.5, 0, torso); chest.scale.set(1.25, 1.05, 0.95);
+      const core = part(new THREE.IcosahedronGeometry(0.62, 0), magma, 0, 0.5, -0.38, torso, false); core.scale.set(1.2, 1, 0.9);
+      part(new THREE.IcosahedronGeometry(0.5, 0), rock, 0, 1.45, -0.15, torso); // head
+      for (const s of [-1, 1]) part(box(0.16, 0.08, 0.06), magma, s * 0.18, 1.5, -0.6, torso, false); // eyes
+      for (const side of [-1, 1]) {
+        const sh = pivot(torso, side * 1.25, 0.9, 0);
+        part(new THREE.IcosahedronGeometry(0.5, 0), rock, 0, 0, 0, sh);
+        part(box(0.45, 1.0, 0.45), rock, 0, -0.65, 0, sh);
+        part(new THREE.IcosahedronGeometry(0.42, 0), magma, 0, -1.25, 0, sh, false);
+        const fist = part(new THREE.IcosahedronGeometry(0.5, 0), rock, 0, -1.3, 0, sh); fist.scale.setScalar(1.05);
+        r[side < 0 ? 'armL' : 'armR'] = sh;
+        const hip = pivot(body, side * 0.55, 1.05, 0);
+        part(box(0.55, 1.0, 0.6), rock, 0, -0.5, 0, hip);
+        part(box(0.7, 0.2, 0.85), rock, 0, -1.0, -0.1, hip);
+        r[side < 0 ? 'hipL' : 'hipR'] = hip;
+      }
+      r.torso = torso;
+      return { root, rig: r, height: 3.4 };
+    }
     case 'boss': {
       // Colossal black-basalt pharaoh with gold regalia and a burning core.
       const root = new THREE.Group();

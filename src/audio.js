@@ -251,6 +251,16 @@ const DEFS = {
   door: [3.0, (c, o) => rumble(c, o, { len: 2.8 })],
   spawn: [1.0, (c, o) => { zap(c, o, { f1: 200, f2: 2000, len: 0.6, type: 'sine', vol: 0.3 }); whoosh(c, o, { len: 0.8, f1: 2000, f2: 400, vol: 0.3 }); }],
   bounce: [0.15, (c, o) => thud(c, o, { f: 200, len: 0.08, vol: 0.3, noise: 0.2 })],
+  heartbeat: [0.6, (c, o) => {
+    // lub-dub: two low sine thumps
+    for (const [t, f, v] of [[0, 55, 1.0], [0.24, 48, 0.7]]) {
+      const x = osc(c, 'sine', f * 1.6);
+      x.frequency.setValueAtTime(f * 1.6, t); x.frequency.exponentialRampToValueAtTime(f * 0.7, t + 0.16);
+      env(c, x, t, 0.004, v, 0.17).connect(o);
+      x.start(t); x.stop(t + 0.22);
+    }
+  }],
+  combo: [0.4, (c, o) => blip(c, o, [880, 1175, 1568], { type: 'triangle', vol: 0.15, step: 0.05, dur: 0.12 })],
   hitmarker: [0.08, (c, o) => blip(c, o, [2600], { type: 'sine', vol: 0.08, dur: 0.03 })],
   chain: [0.6, (c, o) => { clack(c, o, { vol: 0.4 }); whoosh(c, o, { len: 0.5, f1: 600, f2: 1500, vol: 0.3 }); }],
   stomp: [1.2, (c, o) => { thud(c, o, { f: 35, len: 1.0, vol: 1.3, noise: 1 }); }],

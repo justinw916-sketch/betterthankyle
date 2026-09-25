@@ -68,6 +68,30 @@ export class Input {
 
   unlock() { if (document.pointerLockElement) document.exitPointerLock(); }
 
+  // Gamepad (standard mapping). Called once per frame before the game reads input.
+  pollPad() {
+    const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+    let gp = null;
+    for (const p of pads) if (p && p.connected) { gp = p; break; }
+    if (!gp) { this.pad = null; this.padFire = this.padJump = false; return; }
+    if (!this.padSeen) { this.padSeen = true; if (this.onPad) this.onPad(gp.id); }
+    const dz = (v) => { v = v || 0; const a = Math.abs(v); return a < 0.16 ? 0 : Math.sign(v) * ((a - 0.16) / 0.84); };
+    const btn = (i) => !!(gp.buttons[i] && (gp.buttons[i].pressed || gp.buttons[i].value > 0.5));
+    const look = (v) => Math.sign(v) * v * v; // squared curve for fine aiming
+    this.pad = { mx: dz(gp.axes[0]), my: dz(gp.axes[1]), lx: look(dz(gp.axes[2])), ly: look(dz(gp.axes[3])) };
+    this.padFire = btn(7) || btn(6);
+    this.padJump = btn(0);
+    const prev = this.padPrev || [];
+    const rise = (i) => btn(i) && !prev[i];
+    if (rise(1)) this.pressed.add('KeyQ');
+    if (rise(3)) this.pressed.add('KeyB');
+    if (rise(9)) this.pressed.add('Escape');
+    if (rise(0)) this.pressed.add('PadA');
+    if (rise(4)) this.wheel -= 1;
+    if (rise(5) || rise(2)) this.wheel += 1;
+    this.padPrev = gp.buttons.map((_, i) => btn(i));
+  }
+
   down(code) { return this.keys.has(code); }
   mouse(btn) { return (this.buttons & (1 << btn)) !== 0; }
   wasPressed(code) { return this.pressed.has(code); }

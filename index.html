@@ -45,6 +45,7 @@
     <div id="hud-boss"><div id="hud-boss-name"></div><div class="bar"><div id="hud-boss-fill"></div></div></div>
     <div id="hud-power"></div>
     <div id="hud-timer"></div>
+    <div id="hud-combo"><b id="hud-combo-n"></b><span>KILL COMBO</span><em id="hud-combo-m"></em></div>
     <div id="hud-msg"></div>
     <div id="hud-log"></div>
     <div id="hud-charge"><div id="hud-charge-fill"></div></div>
@@ -87,6 +88,7 @@
         <button data-act="continue" id="btn-continue" hidden>Continue</button>
         <button data-act="new">New Game</button>
         <button data-act="levels">Select Level</button>
+        <button data-act="arena" id="btn-arena">Endless Arena</button>
         <button data-act="difficulty">Difficulty: <em id="diff-label">Normal</em></button>
         <button data-act="options">Options</button>
         <button data-act="controls">Controls</button>
@@ -147,7 +149,7 @@
 
     <div id="menu-dead" class="menu dim red">
       <h2>You Died</h2>
-      <p class="hint">Even serious heroes fall. Get back in there.</p>
+      <p class="hint" id="dead-info">Even serious heroes fall. Get back in there.</p>
       <div class="buttons">
         <button data-act="respawn">Respawn</button>
         <button data-act="quit">Quit to menu</button>

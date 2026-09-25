@@ -68,6 +68,12 @@ export class Player {
     if (input.down('KeyS') || input.down('ArrowDown')) fz += 1;
     if (input.down('KeyA') || input.down('ArrowLeft')) fx -= 1;
     if (input.down('KeyD') || input.down('ArrowRight')) fx += 1;
+    if (input.pad) {
+      fx += input.pad.mx; fz += input.pad.my;
+      this.yaw -= input.pad.lx * dt * 3.2 * this.game.settings.sensitivity;
+      this.pitch -= input.pad.ly * dt * 2.3 * this.game.settings.sensitivity * (this.game.settings.invertY ? -1 : 1);
+      this.pitch = clamp(this.pitch, -1.5, 1.5);
+    }
     const walk = input.down('ShiftLeft') || input.down('ShiftRight');
     const len = Math.hypot(fx, fz);
     const sin = Math.sin(this.yaw), cos = Math.cos(this.yaw);
@@ -77,7 +83,7 @@ export class Player {
       wx = fx * cos + fz * sin;
       wz = -fx * sin + fz * cos;
     }
-    const maxSpeed = PLAYER.maxSpeed * (walk ? 0.45 : 1) * (this.speedT > 0 ? 1.55 : 1);
+    const maxSpeed = PLAYER.maxSpeed * (walk ? 0.45 : 1) * (this.speedT > 0 ? 1.55 : 1) * Math.min(1, len || 1); // analog stick: partial tilt = slower
     const v = this.vel;
     if (this.onGround) {
       // friction
@@ -96,7 +102,7 @@ export class Player {
       v.x += wx * acc; v.z += wz * acc;
     }
     // jump
-    if (this.onGround && input.down('Space')) {
+    if (this.onGround && (input.down('Space') || input.padJump)) {
       v.y = PLAYER.jump;
       this.onGround = false;
       this.game.audio.play('jump', { vol: 0.6 });

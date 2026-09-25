@@ -12,6 +12,8 @@ export const ENEMY_DEFS = {
   bull: { name: 'Horned Bull', hp: 220, speed: 16, r: 1.1, h: 2.4, score: 100, spheres: [[1.45, 0.8, -0.6], [1.45, 0.8, 0.6], [1.55, 0.55, -1.5]], blood: [0.5, 0.02, 0.02], gib: ['flesh', 'fur', 'bone'], pain: 'bullroar' },
   arachnid: { name: 'Arachnid Soldier', hp: 500, speed: 3.2, r: 1.6, h: 3.3, score: 250, spheres: [[1.4, 0.95, 0.6], [1.4, 0.8, 1.4], [2.3, 0.62, -0.6], [3.0, 0.35, -0.6]], blood: [0.3, 0.6, 0.1], gib: ['green', 'flesh'], pain: 'mech' },
   harpy: { name: 'Winged Harpy', hp: 40, speed: 10, r: 0.6, h: 1.2, score: 30, fly: true, spheres: [[0.1, 0.55]], blood: [0.55, 0.02, 0.02], gib: ['flesh'], pain: 'harpy' },
+  golem: { name: 'Lava Golem', hp: 380, speed: 3.6, r: 1.25, h: 3.4, score: 180, spheres: [[2.2, 1.2], [3.2, 0.55], [1.0, 0.7]], blood: [1, 0.4, 0.1], gib: ['stone', 'stone'], pain: 'mech', bloodless: true },
+  golemling: { name: 'Golemling', model: 'golem', hp: 60, speed: 7, r: 0.65, h: 1.7, scale: 0.5, score: 30, spheres: [[1.1, 0.6], [1.6, 0.28]], blood: [1, 0.4, 0.1], gib: ['stone'], pain: 'skeleton', bloodless: true },
   biomech: { name: 'Biomechanoid', hp: 700, speed: 2.8, r: 1.3, h: 4.6, score: 400, spheres: [[3.4, 1.0], [2.4, 0.9], [1.2, 0.65]], blood: [0.3, 0.3, 0.35], gib: ['metal', 'flesh'], pain: 'mech', bloodless: true },
   ra: { name: 'Ra, the Sun Colossus', model: 'boss', variant: 'ra', hp: 22000, speed: 4.6, r: 5.2, h: 22, scale: 1.6, score: 20000, spheres: [[9, 2.6], [12.3, 1.5], [6.2, 2.4], [3.5, 1.6]], blood: [1, 0.8, 0.3], gib: ['stone', 'metal'], pain: 'mech', bloodless: true, boss: true },
   boss: { name: 'The Colossus', hp: 14000, speed: 4.2, r: 5.2, h: 22, scale: 1.6, score: 10000, spheres: [[9, 2.6], [12.3, 1.5], [6.2, 2.4], [3.5, 1.6]], blood: [0.7, 0.6, 0.45], gib: ['stone'], pain: 'mech', bloodless: true, boss: true },
@@ -55,7 +57,13 @@ class Enemy {
     this.alt = rand(5, 8);
     this.summonCount = 0;
     this.meshes = [];
-    this.root.traverse((o) => { if (o.isMesh) { o.castShadow = true; this.meshes.push(o); o.userData.mat = o.material; } });
+    this.root.traverse((o) => {
+      if (!o.isMesh) return;
+      // only the larger parts cast shadows: halves the shadow-pass draw calls in big hordes
+      if (!o.geometry.boundingSphere) o.geometry.computeBoundingSphere();
+      o.castShadow = o.geometry.boundingSphere.radius > 0.24;
+      this.meshes.push(o); o.userData.mat = o.material;
+    });
     this.flashT = 0;
     this.root.rotation.y = this.yaw;
     this.root.scale.setScalar(0.01);
@@ -126,13 +134,22 @@ class Enemy {
     } else {
       game.audio.play(this.def.hp > 200 ? 'mech' : 'death', { pos: p, vol: 0.8, rate: this.def.hp > 200 ? 0.7 : 1.3, group: 'death', maxVoices: 3 });
       if (!this.def.bloodless) fx.decal(p.x, p.z, 1 + this.def.r, game.world.groundHeight(p.x, p.z, 0.2, p.y + 1) + 0.02);
-      if (this.type === 'biomech' || this.type === 'arachnid') {
-        fx.explosion(p.x, p.y + this.def.h * 0.6, p.z, 1.2);
+      if (this.type === 'biomech' || this.type === 'arachnid' || this.type === 'golem') {
+        fx.explosion(p.x, p.y + this.def.h * 0.6, p.z, 1.2, this.type === 'golem' ? [1, 0.35, 0.05] : null);
         game.audio.play('explosion', { pos: p, range: 40 });
       }
       this.state = 'dead'; this.deadT = 0;
     }
     this.mgr.onDeath(this, selfDestruct);
+    // a slain golem crumbles into three smaller golemlings
+    if (this.type === 'golem') {
+      fx.gibs(p.x, p.y + 2, p.z, 8, ['stone'], 8, false);
+      for (let i = 0; i < 3; i++) {
+        const a = (i / 3) * Math.PI * 2 + Math.random();
+        const c = this.mgr.spawnSafe('golemling', p.x + Math.cos(a) * 2, p.z + Math.sin(a) * 2, 2, { encounter: this.encounter, bounds: this.bounds, floorY: this.floorY, silent: true });
+        if (c) { c.summoned = true; c.vel.set(Math.cos(a) * 6, 6, Math.sin(a) * 6); c.onGround = false; c.spawnT = 0.01; }
+      }
+    }
   }
 
   update(dt) {
@@ -144,7 +161,7 @@ class Enemy {
     }
     if (this.spawnT > 0) {
       this.spawnT -= dt;
-      this.root.scale.setScalar(this.def.boss ? this.def.scale : clamp(1 - this.spawnT / 0.35, 0.01, 1));
+      this.root.scale.setScalar(this.def.boss ? this.def.scale : clamp(1 - this.spawnT / 0.35, 0.01, 1) * (this.def.scale || 1));
       if (this.spawnT > 0) return;
       this.root.scale.setScalar(this.def.scale || 1);
     }
@@ -305,6 +322,37 @@ class Enemy {
           if (this.stateT <= 0) { this.state = 'chase'; this.stateT = rand(2, 4); }
         }
         this.vel.y += ((this.state === 'climb' ? pl.pos.y + this.alt + 2 : tAlt) - this.pos.y) * dt * 3 - this.vel.y * dt * 2;
+        break;
+      }
+      case 'golem': case 'golemling': {
+        const big = this.type === 'golem';
+        face = toYaw; turn = big ? 2 : 6;
+        mx = toX; mz = toZ;
+        this.attackT -= dt;
+        // lob a glob of magma in a high arc
+        if (big && this.attackT <= 0 && plAlive && dist > 8 && dist < 45) {
+          this.attackT = rand(2.6, 3.6);
+          const m = this.muzzle(0.6, 3.4, 1.2);
+          const T = Math.max(0.8, dist / 16), G = 12;
+          const tx = pl.pos.x + pl.vel.x * T * 0.5, tz = pl.pos.z + pl.vel.z * T * 0.5;
+          game.projectiles.spawn('magma', m, { x: (tx - m.x) / T, y: (pl.pos.y + 1 - m.y + 0.5 * G * T * T) / T, z: (tz - m.z) / T }, 'enemy', { dmg: 18, splash: 14, radius: 3.5, source: this });
+          game.audio.play('enemyfire', { pos: this.pos, rate: 0.7 });
+          this.fireAnim = 0.5;
+        }
+        const reach = this.def.r + (big ? 1.8 : 1.0);
+        if (plAlive && dist < reach && this.meleeT <= 0) {
+          this.meleeT = big ? 1.6 : 0.9;
+          pl.damage(big ? 24 : 9, this.pos, big ? 12 : 0);
+          this.fireAnim = 0.4;
+          if (big) { game.audio.play('stomp', { pos: this.pos }); game.effects.addShake(0.2); game.effects.dust(this.pos.x, this.pos.y + 0.2, this.pos.z, 0, 1, 0, 12); }
+          else game.audio.play('splat', { pos: this.pos });
+        }
+        if (dist < reach - 0.4) speed = 0;
+        if (big) {
+          this.stepT = (this.stepT || 0) - dt * (Math.hypot(this.vel.x, this.vel.z) > 0.5 ? 1 : 0);
+          if (this.stepT <= 0) { this.stepT = 0.8; game.audio.play('stomp', { pos: this.pos, vol: 0.35, range: 20 }); }
+          if (Math.random() < dt * 6) game.effects.add.spawn(this.pos.x + rand(-0.8, 0.8), this.pos.y + rand(1, 3), this.pos.z + rand(-0.8, 0.8), 0, rand(0.5, 1.5), 0, 0.8, 0.15, 0.05, 3, 1.1, 0.2, 1, 0.2, 0, 1, -0.5, 0.5);
+        }
         break;
       }
       case 'biomech': {
@@ -487,6 +535,14 @@ class Enemy {
         for (const w of r.wings) w.w.rotation.z = w.s * (Math.sin(this.t * 11) * 0.7 + 0.1);
         r.torso.rotation.x = this.state === 'dive' ? 0.9 : 0.25;
         r.body.position.y = Math.sin(this.t * 11) * 0.06;
+        break;
+      }
+      case 'golem': case 'golemling': {
+        r.hipL.rotation.x = s * 0.5 * k; r.hipR.rotation.x = -s * 0.5 * k;
+        r.body.position.y = -Math.abs(s) * 0.1 * k;
+        r.torso.rotation.z = s * 0.06 * k;
+        const swing = this.fireAnim > 0 ? -2.2 : 0;
+        r.armL.rotation.x = -s * 0.6 * k + swing; r.armR.rotation.x = s * 0.6 * k + swing;
         break;
       }
       case 'biomech': {

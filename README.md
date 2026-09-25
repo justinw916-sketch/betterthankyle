@@ -20,11 +20,13 @@ Open http://localhost:8080, click **New Game**, then WASD + mouse, 1–0 for wea
 
 - 7 levels: day temple, dusk oasis, moonlit Karnak, the blood-red Great Pyramid (boss), a **sandstorm survival siege**,
   the **lava-filled underworld** with jump pads, and **floating sky islands** over a cloud sea (falls are fatal) with a final boss
+- **Endless Arena** mode with escalating waves, a Colossus every 10th wave, and a saved best run
+- **Kill combos** (score multiplier up to x5) and **gamepad support** (Xbox/PlayStation standard mapping)
 - Wave-based arena encounters, timed survival holds, locking doors, checkpoints, secrets and exit portals
 - 10 weapons: knife, (dual) revolvers, pump and double shotguns, tommygun, minigun, rocket and grenade launchers,
   laser gun and a chargeable cannon
 - Power-ups: Serious Damage, Serious Protection, Serious Speed and the screen-clearing Serious Bomb (B)
-- 8 enemy types plus two bosses (the Colossus and Ra, the Sun Colossus), with individual AI (charging, leaping, flying/diving, burst-firing, homing
+- 9 enemy types (incl. the splitting Lava Golem) plus two bosses (the Colossus and Ra, the Sun Colossus), with individual AI (charging, leaping, flying/diving, burst-firing, homing
   rockets, summoning)
 - Gibs, blood decals, bloom, ACES tone mapping, shadows, a sky-baked environment map, and pooled lights and particles
 - WebAudio SFX (including the kamikaze scream) and a generative music score that reacts to combat
