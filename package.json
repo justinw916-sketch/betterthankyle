@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "start": "http-server -c-1 -p 8080 .",
-    "test": "node tests/unit.mjs && node tests/smoke.mjs && node tests/playthrough.mjs"
+    "test": "node tests/unit.mjs && node tests/smoke.mjs && node tests/playthrough.mjs",
+    "build": "node build.mjs"
   },
   "license": "MIT",
   "devDependencies": {
