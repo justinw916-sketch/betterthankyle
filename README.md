@@ -20,8 +20,10 @@ Open http://localhost:8080, click **New Game**, then WASD + mouse, 1–0 for wea
 
 ## Features
 
-- 7 levels: day temple, dusk oasis, moonlit Karnak, the blood-red Great Pyramid (boss), a **sandstorm survival siege**,
-  the **lava-filled underworld** with jump pads, and **floating sky islands** over a cloud sea (falls are fatal) with a final boss
+- 9 levels: day temple, dusk oasis, moonlit Karnak, the blood-red Great Pyramid (boss), a **sandstorm survival siege**,
+  the **lava-filled underworld** with jump pads, the **Tomb of Thoth** (key-sealed doors, spike traps), the **Gauntlet of Anubis**
+  (spike-strip hall + lava island), and **floating sky islands** over a cloud sea (falls are fatal) with a final boss
+- Objective tracker with a goal compass, per-level personal bests, auto-pause on tab switch, level fade-ins
 - **Endless Arena** mode with escalating waves, a Colossus every 10th wave, and a saved best run
 - **Kill combos** (score multiplier up to x5) and **gamepad support** (Xbox/PlayStation standard mapping)
 - Wave-based arena encounters, timed survival holds, locking doors, checkpoints, secrets and exit portals
@@ -39,7 +41,7 @@ Open http://localhost:8080, click **New Game**, then WASD + mouse, 1–0 for wea
 
 ```bash
 npm install
-npm test   # unit + headless smoke + a bot that plays all 7 levels to victory
+npm test   # unit + headless smoke + a bot that plays all 9 levels to victory
 LEVEL=5 node tests/playthrough.mjs   # bot-play a single level
 ```
 

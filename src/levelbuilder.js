@@ -29,6 +29,9 @@ export class LevelBuilder {
     this.lightBudget = 8;
     this.lavas = [];     // hazard rectangles {x0,z0,x1,z1,y}
     this.jumpPads = [];  // {x,y,z,vx,vy,vz}
+    this.spikeTraps = []; // timed floor spikes
+    this.keyDoors = {};   // keyId -> [doorId]
+    this.keys = {};       // keyId -> display name
   }
 
   // Solid box (collision + render)
@@ -138,6 +141,43 @@ export class LevelBuilder {
     if (open) { b.active = false; mesh.position.y = -h / 2 + 0.05; mesh.visible = false; }
     this.doors[id] = d;
     return d;
+  }
+
+  // A sealed door that only opens when the player picks up the matching key.
+  keyDoor(id, keyId, keyName, cx, cz, w, axis = 'x', h = 7) {
+    const d = this.door(id, cx, cz, w, axis, h, false);
+    if (!this.M._keyDoor) {
+      this.M._keyDoor = this.M.door.clone();
+      this.M._keyDoor.emissive = new THREE.Color(0x33ddff);
+      this.M._keyDoor.emissiveIntensity = 2.6;
+    }
+    d.mesh.material = this.M._keyDoor;
+    d.keyId = keyId;
+    (this.keyDoors[keyId] ||= []).push(id);
+    this.keys[keyId] = keyName;
+    return d;
+  }
+
+  // Timed spike trap: a grated floor plate whose spikes shoot up every `period` seconds.
+  spikes(x0, z0, x1, z1, { period = 3, up = 1.1, offset = 0, y = 0 } = {}) {
+    const M = this.M;
+    const w = x1 - x0, d = z1 - z0;
+    this.visual(x0, y - 0.3, z0, x1, y + 0.03, z1, M.darkmetal, 2);
+    const cols = Math.max(1, Math.round(w / 1.1)), rows = Math.max(1, Math.round(d / 1.1));
+    const geo = cone(0.16, 1.1, 5);
+    const mat = M._spikeMat || (M._spikeMat = new THREE.MeshStandardMaterial({ color: 0xb8bcc4, metalness: 0.9, roughness: 0.3 }));
+    const inst = new THREE.InstancedMesh(geo, mat, cols * rows);
+    const m4 = new THREE.Matrix4();
+    let i = 0;
+    for (let c = 0; c < cols; c++) for (let r = 0; r < rows; r++) {
+      m4.makeTranslation(x0 + (c + 0.5) * (w / cols), 0, z0 + (r + 0.5) * (d / rows));
+      inst.setMatrixAt(i++, m4);
+    }
+    inst.castShadow = true;
+    inst.position.y = y - 1.2;
+    inst.userData.dynamic = true;
+    this.group.add(inst);
+    this.spikeTraps.push({ x0, z0, x1, z1, y, period, up, offset, mesh: inst, hitCycle: -1, warnCycle: -1 });
   }
 
   // Raised platform with stairs on one side ('n','s','e','w').

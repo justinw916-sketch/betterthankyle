@@ -29,6 +29,14 @@ export const THEMES = {
     skyTop: 0x2a70e0, skyHorizon: 0xe8f2ff, skyBottom: 0xf4f8ff, sunColor: 0xfff4e0, sunIntensity: 3.2,
     sunDir: [0.3, 0.75, -0.45], hemi: [0xcfe4ff, 0xe0d8c8, 1.3], fog: [0xe4eefa, 140, 800], exposure: 1.0, clouds: 0.7, void: true,
   },
+  tomb: {
+    skyTop: 0x05080a, skyHorizon: 0x1a2a22, skyBottom: 0x0a100c, sunColor: 0x7a9a8a, sunIntensity: 0.7,
+    sunDir: [0.2, 0.7, 0.3], hemi: [0x2a4a3a, 0x100a06, 0.55], fog: [0x0c1612, 30, 220], exposure: 1.4, clouds: 0.2, stars: true, moon: true, embers: true,
+  },
+  noon: {
+    skyTop: 0x1a5ad8, skyHorizon: 0xe8eef4, skyBottom: 0xf0e0c0, sunColor: 0xffffff, sunIntensity: 3.6,
+    sunDir: [0.15, 0.95, 0.2], hemi: [0xd8e8ff, 0xd8b888, 1.35], fog: [0xe8e4dc, 100, 560], exposure: 0.95, clouds: 0.3,
+  },
   boss: {
     skyTop: 0x4a1020, skyHorizon: 0xff6a30, skyBottom: 0x802010, sunColor: 0xffa070, sunIntensity: 2.8,
     sunDir: [0.2, 0.4, -0.8], hemi: [0xff9070, 0x603020, 0.95], fog: [0xc05a3a, 70, 460], exposure: 1.05, clouds: 1.0,
@@ -423,6 +431,139 @@ export const LEVELS = [
     },
   },
   // ------------------------------------------------------------------ LEVEL 7
+  {
+    id: 'tomb', name: 'Tomb of Thoth', subtitle: 'The Sealed Burial Chamber', theme: 'tomb', music: 2, seed: 88,
+    loadout: { owned: ['knife', 'revolver', 'shotgun', 'dshotgun', 'tommy', 'minigun', 'rocket', 'grenade', 'laser', 'cannon'], ammo: { shells: 80, bullets: 400, rockets: 30, grenades: 25, cells: 300, cannonballs: 6 }, armor: 100 },
+    build(b) {
+      const M = b.M;
+      const W = M.basaltGlyph, F = M.tilesDark;
+      b.spawn = { x: 0, z: 10, yaw: 0 };
+      b.arena(-8, -3, 8, 14, { h: 8, wall: M.basalt, floor: F, gaps: { n: [[0, 6]] } });
+      b.brazier(-6, 11, 0, false); b.brazier(6, 11);
+      b.pickup('armor', 'medium', -5, 5); b.pickup('ammo', 'cells', 5, 5); b.pickup('ammo', 'rockets', 0, 2);
+
+      // Hall of Scribes, with a sealed vault to the east
+      b.arena(-26, -60, 26, -6, { h: 10, wall: W, floor: F, gaps: { s: [[0, 6]], n: [[0, 6]], e: [[-33, 6]] } });
+      b.door('a_in', 0, -5.25, 6, 'x', 7, true);
+      b.door('a_out', 0, -60.75, 6, 'x', 7, false);
+      b.door('vault_in', 26.75, -33, 6, 'z', 7, false);
+      for (const z of [-18, -33, -48]) { b.pillar(-16, z, 9, 1.0); b.pillar(16, z, 9, 1.0); }
+      b.spikes(-10, -36, 10, -30, { period: 3 });
+      b.spikes(-10, -48, 10, -44, { period: 3, offset: 1.5 });
+      b.statue(-23, -22, Math.PI / 2, 6); b.statue(-23, -46, Math.PI / 2, 6);
+      for (const [x, z] of [[-23, -9], [23, -9], [-23, -57], [23, -57]]) b.brazier(x, z);
+      b.pickup('health', 'medium', -20, -33); b.pickup('ammo', 'shells', 8, -14); b.pickup('ammo', 'bullets', -8, -14);
+      b.encounter({
+        id: 'A', area: [-24, -58, 24, -10], lock: ['a_in'], open: ['a_in', 'a_out', 'vault_in'],
+        message: 'The scribes are silenced. The vault stands open!', checkpoint: { x: 0, z: -40, yaw: 0 },
+        waves: [
+          { spawn: [S('skeleton', 6, 0, -55, 20), S('gnasher', 6, 0, -52, 20)] },
+          { when: 3, spawn: [S('harpy', 6, 0, -35, 15), S('gunner', 6, 0, -55, 20)] },
+          { when: 2, spawn: [S('kamikaze', 12, -20, -56, 4), S('kamikaze', 12, 20, -56, 4), S('golem', 1, 0, -54, 4)], items: [['health', 'large', 0, -14]] },
+        ],
+      });
+
+      // The vault: the Golden Ankh, and its guardians
+      b.arena(29, -42, 45, -24, { h: 8, wall: M.basalt, floor: F, gaps: { w: [[-33, 6]] } });
+      b.pickup('key', 'ankh', 41, -33);
+      b.pickup('powerup', 'bomb', 32, -26);
+      b.brazier(43, -26, 0, false); b.brazier(43, -40, 0, false);
+      b.encounter({
+        id: 'V', area: [30, -41, 44, -25], message: 'Take the Golden Ankh.',
+        waves: [{ spawn: [S('gnasher', 6, 38, -36, 4), S('golemling', 3, 38, -29, 3)], msg: 'AMBUSH!' }],
+      });
+
+      // Corridor of blades, then the burial chamber (sealed by the ankh)
+      b.corridorZ(0, -82, -61.5, 6, 8, M.basalt, F);
+      b.spikes(-3, -74, 3, -70, { period: 2.4, offset: 0.6 });
+      b.arena(-35, -150, 35, -83.5, { h: 12, wall: W, floor: F, gaps: { s: [[0, 6]], n: [[0, 6]] } });
+      b.keyDoor('b_seal', 'ankh', 'Golden Ankh', 0, -82.75, 6, 'x', 7);
+      b.door('b_out', 0, -150.75, 6, 'x', 7, false);
+      b.platform(0, -118, 12, 18, 1.6, M.basalt, 'ns', F);
+      b.block(0, -118, 3, 7, 1.2, M.gold, 1.6); // Thoth's sarcophagus
+      for (const [x, z] of [[-25, -100], [25, -100], [-25, -136], [25, -136]]) b.obelisk(x, z, 12);
+      for (const z of [-110, -126]) { b.statue(-31, z, Math.PI / 2, 7); b.statue(31, z, -Math.PI / 2, 7); }
+      b.spikes(-20, -122, -14, -114, { period: 3.5 }); b.spikes(14, -122, 20, -114, { period: 3.5, offset: 1.75 });
+      for (const [x, z] of [[-32, -86], [32, -86], [-32, -147], [32, -147]]) b.brazier(x, z, 0, false);
+      b.pickup('armor', 'large', 0, -110.5, 1.6);
+      b.pickup('ammo', 'rockets', -30, -118); b.pickup('ammo', 'cannonballs', 30, -118);
+      b.pickup('health', 'large', -10, -145); b.pickup('health', 'large', 10, -145);
+      b.secret(33, -148, ['health', 'super']);
+      b.encounter({
+        id: 'B', area: [-33, -148, 33, -88], lock: ['b_seal'], open: ['b_seal', 'b_out'],
+        message: "Thoth's tomb is yours.", checkpoint: { x: 0, z: -92, yaw: 0 },
+        waves: [
+          { spawn: [S('skeleton', 8, 0, -140, 25), S('arachnid', 1, 0, -144, 4)] },
+          { when: 3, spawn: [S('golem', 2, 0, -140, 20), S('harpy', 8, 0, -118, 25)], msg: 'The guardians awaken!' },
+          { when: 3, spawn: [S('kamikaze', 16, -30, -146, 4), S('kamikaze', 16, 30, -146, 4), S('gunner', 8, 0, -140, 28)], items: [['ammo', 'rockets', 0, -92], ['health', 'large', 5, -92]] },
+          { when: 2, spawn: [S('biomech', 2, 0, -142, 25), S('golem', 2, 0, -140, 20), S('gnasher', 10, 0, -135, 28)], items: [['armor', 'medium', -5, -92]] },
+        ],
+      });
+      b.arena(-8, -165, 8, -153, { h: 8, wall: M.basalt, floor: F, gaps: { s: [[0, 6]] } });
+      b.brazier(-6, -163); b.brazier(6, -163, 0, false);
+      b.exit = { x: 0, z: -160, requires: 'B' };
+    },
+  },
+  // ------------------------------------------------------------------ LEVEL 8
+  {
+    id: 'gauntlet', name: 'Gauntlet of Anubis', subtitle: 'Trials of Blade and Fire', theme: 'noon', music: 1, seed: 91,
+    loadout: { owned: ['knife', 'revolver', 'shotgun', 'dshotgun', 'tommy', 'minigun', 'rocket', 'grenade', 'laser', 'cannon'], ammo: { shells: 80, bullets: 400, rockets: 30, grenades: 25, cells: 300, cannonballs: 6 }, armor: 100 },
+    build(b) {
+      const M = b.M;
+      b.spawn = { x: 0, z: 10, yaw: 0 };
+      b.arena(-8, -3, 8, 14, { h: 8, wall: M.sandstone, gaps: { n: [[0, 6]] } });
+      b.pickup('health', 'medium', -5, 5); b.pickup('ammo', 'shells', 5, 5); b.pickup('armor', 'medium', 0, 2);
+
+      // Trial of Blades: a long hall of staggered spike strips, with raised ledges as the exposed safe route
+      b.arena(-20, -80, 20, -6, { h: 10, gaps: { s: [[0, 6]], n: [[0, 6]] } });
+      b.door('a_in', 0, -5.25, 6, 'x', 7, true);
+      b.door('a_out', 0, -80.75, 6, 'x', 7, false);
+      [-20, -32, -44, -56, -68].forEach((z, i) => b.spikes(-13, z - 2, 13, z + 2, { period: 3, offset: i * 0.6 }));
+      b.platform(-16.5, -44, 7, 44, 2.5, M.sandstone, 'e'); b.platform(16.5, -44, 7, 44, 2.5, M.sandstone, 'w');
+      for (const [x, z] of [[-18, -9], [18, -9], [-18, -77], [18, -77]]) b.brazier(x, z, 0, false);
+      b.pickup('health', 'medium', -16.5, -30, 2.5); b.pickup('health', 'medium', 16.5, -58, 2.5);
+      b.pickup('ammo', 'rockets', -16.5, -58, 2.5); b.pickup('ammo', 'bullets', 16.5, -30, 2.5);
+      b.pickup('powerup', 'speed', 0, -26);
+      b.encounter({
+        id: 'A', area: [-18, -78, 18, -10], lock: ['a_in'], open: ['a_in', 'a_out'],
+        message: 'The blades fall silent.', checkpoint: { x: 0, z: -72, yaw: 0 },
+        waves: [
+          { spawn: [S('gunner', 4, -16.5, -50, 4), S('gunner', 4, 16.5, -50, 4), S('kamikaze', 12, 0, -76, 10)], msg: 'Time your steps!' },
+          { when: 3, spawn: [S('gnasher', 10, 0, -74, 12), S('skeleton', 4, 0, -74, 12)] },
+          { when: 2, spawn: [S('kamikaze', 20, 0, -76, 12), S('bull', 3, 0, -74, 10)], items: [['health', 'large', 0, -14]] },
+        ],
+      });
+
+      b.corridorZ(0, -100, -81.5, 6, 8);
+      b.pickup('ammo', 'cells', -1.5, -90); b.pickup('ammo', 'grenades', 1.5, -90);
+
+      // Trial of Fire: an island ringed by lava, reached by launch pads
+      b.arena(-35, -165, 35, -101.5, { h: 11, gaps: { s: [[0, 6]], n: [[0, 6]] } });
+      b.door('b_in', 0, -100.75, 6, 'x', 7, true);
+      b.door('b_out', 0, -165.75, 6, 'x', 7, false);
+      b.lava(-17, -150, 17, -145); b.lava(-17, -121, 17, -116); b.lava(-17, -145, -12, -121); b.lava(12, -145, 17, -121);
+      b.jumpPad(0, -110, 0, 0, -126, 0); b.jumpPad(-26, -133, 0, -6, -133, 0); b.jumpPad(26, -133, 0, 6, -133, 0);
+      b.obelisk(0, -136, 12);
+      b.statue(-31, -106, Math.PI / 2, 7); b.statue(31, -106, -Math.PI / 2, 7);
+      b.statue(-31, -160, Math.PI / 2, 7); b.statue(31, -160, -Math.PI / 2, 7);
+      b.pickup('powerup', 'damage', 0, -128); b.pickup('armor', 'large', 5, -140);
+      b.pickup('ammo', 'rockets', -30, -133); b.pickup('ammo', 'cannonballs', 30, -133);
+      b.secret(-33, -163, ['powerup', 'bomb']);
+      b.encounter({
+        id: 'B', area: [-33, -163, 33, -104], lock: ['b_in'], open: ['b_in', 'b_out'],
+        message: 'The trials are complete.', checkpoint: { x: 0, z: -108, yaw: 0 },
+        waves: [
+          { spawn: [S('golem', 2, 0, -158, 20), S('harpy', 6, 0, -133, 25)] },
+          { when: 3, spawn: [S('bull', 5, 0, -158, 25), S('gunner', 8, 0, -158, 28)] },
+          { when: 3, spawn: [S('arachnid', 2, 0, -158, 25), S('kamikaze', 10, -30, -160, 4), S('kamikaze', 10, 30, -160, 4)], items: [['health', 'large', 0, -108], ['ammo', 'rockets', 5, -108]] },
+          { when: 2, spawn: [S('biomech', 2, 0, -158, 25), S('golem', 2, 0, -155, 20), S('skeleton', 6, 0, -150, 25)], items: [['armor', 'medium', -5, -108]] },
+        ],
+      });
+      b.arena(-8, -181, 8, -168, { h: 8, wall: M.sandstone, gaps: { s: [[0, 6]] } });
+      b.exit = { x: 0, z: -176, requires: 'B' };
+    },
+  },
+  // ------------------------------------------------------------------ LEVEL 9
   {
     id: 'sky', name: 'Sky Temple of Ra', subtitle: 'Above the Clouds', theme: 'sky', music: 3, seed: 77,
     loadout: { owned: ['knife', 'revolver', 'shotgun', 'dshotgun', 'tommy', 'minigun', 'rocket', 'grenade', 'laser', 'cannon'], ammo: { shells: 80, bullets: 400, rockets: 35, grenades: 25, cells: 300, cannonballs: 8 }, armor: 100 },

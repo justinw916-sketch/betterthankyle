@@ -14,6 +14,15 @@ export class UI {
       b.addEventListener('mouseenter', () => this.game.audio.play('hitmarker', { vol: 0.5 }));
     });
     this.bindOptions();
+    // secret: click the SAM logo 5 times quickly to toggle invincibility
+    const logo = document.querySelector('#menu-main .logo');
+    let clicks = [];
+    logo.addEventListener('click', () => {
+      const now = performance.now();
+      clicks = clicks.filter((t) => now - t < 2500);
+      clicks.push(now);
+      if (clicks.length >= 5) { clicks = []; this.game.toggleGodMode(); }
+    });
     this.updateDifficulty();
     // clicking the canvas while playing re-captures the mouse
     game.canvas.addEventListener('click', () => { if (game.state === 'playing' && !game.input.locked) game.input.lock(); });
@@ -28,9 +37,15 @@ export class UI {
     this.current = name;
     if (name === 'levels') this.buildLevels();
     if (name === 'main') this.refreshContinue();
+    if (name === 'pause') {
+      const g = this.game, s = g.stats;
+      const m = Math.floor(s.time / 60), sec = String(Math.floor(s.time % 60)).padStart(2, '0');
+      const obj = g.objective ? g.objective().text : '';
+      $('pause-info').innerHTML = `${$('hud-level').textContent} · ${m}:${sec} · Kills ${s.kills}/${s.total} · Secrets ${s.secrets}/${s.secretTotal}${obj ? `<br>Objective: ${obj}` : ''}`;
+    }
     if (name === 'dead') {
       const r = this.game.arenaResult;
-      $('dead-info').textContent = r ? `Reached wave ${r.wave} with ${r.score} points.${r.isBest ? ' NEW BEST!' : ` Best: wave ${r.best.wave}.`}` : 'Even serious heroes fall. Get back in there.';
+      $('dead-info').textContent = r ? `Reached wave ${r.wave} with ${r.score} points.${r.god ? ' (Invincibility on: records not saved.)' : r.isBest ? ' NEW BEST!' : ` Best: wave ${r.best.wave}.`}` : 'Even serious heroes fall. Get back in there.';
     }
     if (name === 'options') this.syncOptions();
   }
@@ -90,7 +105,10 @@ export class UI {
     const unlocked = this.game.progress.unlocked || 1;
     LEVELS.forEach((L, i) => {
       const b = document.createElement('button');
-      b.innerHTML = `${i + 1}. ${L.name}<small>${i < unlocked ? L.subtitle : 'Locked — finish the previous level'}</small>`;
+      const r = this.game.records[L.id];
+      const fmt = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
+      const rec = r ? `<span class="rec">Best ${fmt(r.time)} · ${r.score} pts · ${r.kills}/${r.total} kills · ${r.secrets}/${r.secretTotal} secrets</span>` : '';
+      b.innerHTML = `${i + 1}. ${L.name}<small>${i < unlocked ? L.subtitle : 'Locked — finish the previous level'}</small>${rec}`;
       b.disabled = i >= unlocked;
       b.dataset.act = 'level'; b.dataset.level = i;
       b.addEventListener('click', (e) => { e.stopPropagation(); this.act('level', b); });
@@ -115,6 +133,7 @@ export class UI {
     $('opt-quality').addEventListener('change', (e) => { g.settings.quality = e.target.value; g.saveSettings(); g.applyQuality(); });
     $('opt-invert').addEventListener('change', (e) => { g.settings.invertY = e.target.checked; g.saveSettings(); });
     $('opt-fps').addEventListener('change', (e) => { g.settings.showFps = e.target.checked; g.saveSettings(); g.applyQuality(); });
+    $('opt-compass').addEventListener('change', (e) => { g.settings.showCompass = e.target.checked; g.saveSettings(); });
   }
 
   syncOptions() {
@@ -127,6 +146,15 @@ export class UI {
     $('opt-quality').value = s.quality;
     $('opt-invert').checked = s.invertY;
     $('opt-fps').checked = s.showFps;
+    $('opt-compass').checked = s.showCompass !== false;
+  }
+
+  toast(text) {
+    const t = $('toast');
+    t.textContent = text;
+    t.classList.add('show');
+    clearTimeout(this.toastT);
+    this.toastT = setTimeout(() => t.classList.remove('show'), 2200);
   }
 
   statRows(el, rows) {
@@ -140,6 +168,7 @@ export class UI {
       ['Kills', `${stats.kills} / ${stats.total}`],
       ['Secrets', `${stats.secrets} / ${stats.secretTotal}`],
       ['Best combo', stats.bestCombo || 0],
+      ...(this.game.lastRecord?.newTime ? [['Personal best', 'NEW FASTEST TIME!']] : this.game.lastRecord?.newScore ? [['Personal best', 'NEW HIGH SCORE!']] : []),
       ['Time', `${m}:${String(s).padStart(2, '0')}`],
       ['Score', stats.score],
       ['Difficulty', DIFFICULTIES[this.game.settings.difficulty].name],

@@ -22,6 +22,7 @@ export class HUD {
       fps: $('hud-fps'), charge: $('hud-charge'), chargeFill: $('hud-charge-fill'), crosshair: $('crosshair'),
       serious: $('fx-serious'), secrets: $('hud-secrets-val'), timer: $('hud-timer'),
       bombs: $('hud-bombs'), bombsVal: $('hud-bombs-val'),
+      objective: $('hud-objective'), god: $('hud-god'), compass: $('hud-compass'), compassD: $('hud-compass-d'),
     };
     this.cache = {};
     this.msgT = 0;
@@ -164,6 +165,24 @@ export class HUD {
     this.set('sec', this.el.secrets, `${g.stats.secrets} / ${g.stats.secretTotal}`);
     this.set('bmb', this.el.bombsVal, String(p.bombs));
     this.set('bmc', this.el.bombs, p.bombs > 0 ? 'vital bombs' : 'vital bombs none', 'className');
+    // objective tracker + compass (refreshed 4x per second)
+    this.objT = (this.objT || 0) - dt;
+    if (this.objT <= 0 && g.objective) {
+      this.objT = 0.25;
+      this.obj = g.objective();
+      this.set('obj', this.el.objective, this.obj.text || '');
+    }
+    const o = this.obj;
+    if (o && o.x !== undefined && g.settings.showCompass !== false && p.alive) {
+      const dx = o.x - p.pos.x, dz = o.z - p.pos.z, dist = Math.hypot(dx, dz);
+      if (dist > 4) {
+        const rel = Math.atan2(dx, dz) - p.yaw - Math.PI;
+        this.set('cv', this.el.compass.style, 'flex', 'display');
+        this.el.compass.firstElementChild.style.transform = `rotate(${(-rel * 180) / Math.PI}deg)`;
+        this.set('cd', this.el.compassD, `${Math.round(dist)} m`);
+      } else this.set('cv', this.el.compass.style, 'none', 'display');
+    } else this.set('cv', this.el.compass.style, 'none', 'display');
+    this.set('gd', this.el.god.style, p.god ? 'block' : 'none', 'display');
     // survival countdown
     const surv = g.encounters?.find((e) => e.state === 'active' && (e.survive || e.endless));
     if (surv && surv.endless) {

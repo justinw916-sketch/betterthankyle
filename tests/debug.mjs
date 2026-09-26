@@ -19,6 +19,7 @@ const server = http.createServer((req, res) => {
 await new Promise((r) => server.listen(0, r));
 const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+page.setDefaultTimeout(240000);
 page.on('console', (m) => console.log('[console.' + m.type() + ']', m.text()));
 page.on('pageerror', (e) => console.log('[pageerror]', e.message, e.stack));
 fs.mkdirSync(path.join(root, 'test-results'), { recursive: true });

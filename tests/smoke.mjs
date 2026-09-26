@@ -157,7 +157,7 @@ await step('death -> respawn at checkpoint flow', async () => {
   assert(s.st === 'playing' && s.hp > 0, JSON.stringify(s));
 });
 
-for (let i = 0; i < 7; i++) {
+for (let i = 0; i < 9; i++) {
   await step(`level ${i + 1} builds and renders`, async () => {
     await G((i) => { __game.startLevel(i); __game.player.god = true; __game.simulate(0.5); }, i);
     await wait(300);
@@ -210,12 +210,12 @@ await step('new mechanics: lava, jump pads, bomb, protection, speed, secrets, vo
     g.player.protectT = 0;
     const s0 = g.secrets[0]; g.player.place(s0.x, s0.z, 0); g.simulate(0.1); out.secret = g.stats.secrets;
     // speed: compare distance covered in 1s
-    g.startLevel(6); g.player.god = true; g.player.place(0, -40, 0);
+    g.startLevel(g.levelCount - 1); g.player.god = true; g.player.place(0, -40, 0);
     g.input.keys.add('KeyW'); g.player.speedT = 0; g.simulate(0.6); const z0 = g.player.pos.z; g.simulate(0.4); const slow = z0 - g.player.pos.z;
     g.player.place(0, -40, 0); g.player.speedT = 10; g.simulate(0.6); const z1 = g.player.pos.z; g.simulate(0.4); const fast = z1 - g.player.pos.z;
     g.input.keys.delete('KeyW'); out.speed = [slow, fast];
     // void: step off the launch island
-    g.startLevel(6); g.player.god = false; g.player.place(0, 10, 0); g.player.pos.x = 40; g.simulate(4); out.void = [g.player.alive, g.state];
+    g.startLevel(g.levelCount - 1); g.player.god = false; g.player.place(0, 10, 0); g.player.pos.x = 40; g.simulate(4); out.void = [g.player.alive, g.state];
     return out;
   });
   console.log('    ', JSON.stringify(r));
@@ -254,6 +254,32 @@ await step('endless arena, golem split, kill combos, gamepad', async () => {
   assert(r.golemlings === 3, 'golem did not split: ' + r.golemlings);
   assert(r.padMove > 2 && r.padLook > 0.3, 'gamepad input ignored');
   assert(r.dead === 'dead' && r.best >= 1, 'arena best not recorded');
+});
+
+await step('keys & sealed doors, spike traps, objectives, secret invincibility, records', async () => {
+  const r = await G(() => {
+    const g = __game; const out = {};
+    const tomb = g.levelCount - 3;
+    g.startLevel(tomb); g.player.god = false; g.simulate(0.3);
+    out.obj0 = g.objective().text;
+    out.sealed = g.level.doors.b_seal.state;
+    const key = g.pickups.list.find((p) => p.kind === 'key');
+    g.player.place(key.obj.position.x, key.obj.position.z, 0); g.simulate(0.3);
+    g.simulate(2.5); out.unsealed = g.level.doors.b_seal.state;
+    g.player.health = 100; g.player.armor = 0; g.player.place(0, -72, 0); g.simulate(3); out.spikeHp = g.player.health;
+    for (const c of 'serious') { g.input.pressed.add('Key' + c.toUpperCase()); g.step(1 / 30); }
+    out.god = g.player.god; g.player.damage(999, null); out.godHp = g.player.health;
+    g.toggleGodMode(); out.godOff = !g.player.god;
+    g.startLevel(0); g.stats.time = 99; g.levelComplete(); out.rec = !!g.records.temple; out.saveId = g.savedRun?.levelId;
+    g.quitToMenu();
+    return out;
+  });
+  console.log('    ', JSON.stringify(r));
+  assert(r.obj0 === 'Press onward', 'objective at tomb start: ' + r.obj0);
+  assert(r.sealed === 'closed' && r.unsealed === 'open', 'ankh did not unseal the door');
+  assert(r.spikeHp < 100, 'spikes did no damage: ' + r.spikeHp);
+  assert(r.god && r.godHp > 0 && r.godOff, 'invincibility toggle failed');
+  assert(r.rec && r.saveId === 'oasis', 'records/save by id failed');
 });
 
 const perf = await G(async () => {

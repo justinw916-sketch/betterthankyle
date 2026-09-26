@@ -6,7 +6,7 @@ import { getMaterials } from './textures.js';
 
 const HEALTH = { small: [10, 200], medium: [25, 100], large: [50, 100], super: [100, 200] };
 const ARMOR = { small: [10, 200], medium: [50, 100], large: [100, 200] };
-const GLOW = { health: 0x55ff88, armor: 0xffd044, ammo: 0xffaa55, weapon: 0x88ccff, powerup: 0xff3355 };
+const GLOW = { health: 0x55ff88, armor: 0xffd044, ammo: 0xffaa55, weapon: 0x88ccff, powerup: 0xff3355, key: 0x55ddff };
 
 export class Pickups {
   constructor(game) {
@@ -102,6 +102,10 @@ export class Pickups {
         g.audio.play('weapon');
         hud.message(owned ? w.name + ' ammo' : `You got the ${w.name}!`, 2.5, owned ? '' : 'big');
         hud.pickupFlash('rgba(140,200,255,0.25)');
+        return true;
+      }
+      case 'key': {
+        g.collectKey(p.sub);
         return true;
       }
       case 'powerup': {

@@ -566,6 +566,12 @@ export function makePickupModel(kind, sub) {
     w.group.rotation.y = Math.PI / 2;
     w.group.traverse((o) => { o.castShadow = true; });
     g.add(w.group);
+  } else if (kind === 'key') {
+    // Golden ankh: loop + cross-bar + shaft, glowing
+    const mat = new THREE.MeshStandardMaterial({ color: 0xffd060, emissive: 0xffaa22, emissiveIntensity: 1.4, metalness: 0.9, roughness: 0.25 });
+    const loop = P(new THREE.TorusGeometry(0.2, 0.06, 10, 24), mat, 0, 0.28, 0); loop.scale.set(0.85, 1.15, 1);
+    P(box(0.5, 0.1, 0.1), mat, 0, 0.02, 0);
+    P(box(0.1, 0.6, 0.1), mat, 0, -0.28, 0);
   } else if (kind === 'powerup' && sub === 'bomb') {
     // Serious Bomb: black sphere, gold band, glowing fuse
     P(sph(0.36, 16, 12), new THREE.MeshStandardMaterial({ color: 0x111114, roughness: 0.3, metalness: 0.6 }), 0, 0, 0);

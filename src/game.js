@@ -171,6 +171,8 @@ export class Game {
       this.hud.message('Graphics device was reset — restoring...', 5, 'big red');
     });
     canvas.addEventListener('webglcontextrestored', () => { this.contextLost = false; location.reload(); });
+    // auto-pause when the tab is hidden (switching apps, minimising)
+    document.addEventListener('visibilitychange', () => { if (document.hidden && this.state === 'playing') this.pause(); });
     this.input.onPad = (id) => this.hud.log('Controller connected: ' + id.slice(0, 40), '#9fe0ff');
     this.input.onFallback = () => this.hud.log('Mouse capture unavailable: free-mouse look enabled', '#9fe0ff');
     this.input.onLockChange = (locked) => {
@@ -261,7 +263,10 @@ export class Game {
   get savedRun() {
     try {
       const s = JSON.parse(localStorage.getItem('sam.save') || 'null');
-      return s && s.level < LEVELS.length ? s : null;
+      if (!s) return null;
+      // saves reference levels by id so inserting new levels never shifts them
+      if (s.levelId) { const i = LEVELS.findIndex((l) => l.id === s.levelId); if (i < 0) return null; s.level = i; }
+      return s.level < LEVELS.length ? s : null;
     } catch { return null; }
   }
 
@@ -285,6 +290,8 @@ export class Game {
     this.arenaBestCache = this.arenaBest.wave;
     document.getElementById('hud-level').textContent = typeof i === 'number' ? `${i + 1}. ${L.name}` : L.name;
     if (!checkpoint) this.hud.levelCard(L.name, L.subtitle);
+    const fade = document.getElementById('fx-fade');
+    fade.classList.remove('in'); void fade.offsetWidth; fade.classList.add('in');
     this.combo = 0; this.lastKillT = -99;
     this.hints = i === 0 && !checkpoint ? [
       [5, 'WASD move · Mouse aim · Click fire · Space jump'],
@@ -328,6 +335,8 @@ export class Game {
     this.spawnQueue = [];
     this.encounters = b.encounters.map((e) => ({ ...e, state: 'idle', wave: 0, waveT: 0, spawned: 0, time: 0 }));
     this.secrets = b.secrets.map((s) => ({ ...s, found: false }));
+    this.keys = new Set(checkpoint?.keys || []);
+    this.doorHintT = 0;
     this.stats.secrets = 0; this.stats.secretTotal = this.secrets.length;
     this.padCool = 0; this.lavaT = 0;
     this.stats.total = 0;
@@ -336,6 +345,7 @@ export class Game {
 
     // player & inventory
     this.player.reset();
+    this.player.god = !!this.settings.godMode;
     if (checkpoint) {
       this.collected = new Set(checkpoint.collected);
       for (const e of this.encounters) {
@@ -349,6 +359,7 @@ export class Game {
       this.player.health = checkpoint.health; this.player.armor = checkpoint.armor;
       this.player.bombs = checkpoint.bombs || 0;
       for (const s of this.secrets) if ((checkpoint.secrets || []).includes(this.secrets.indexOf(s))) { s.found = true; this.stats.secrets++; }
+      for (const k of this.keys) for (const d of b.keyDoors[k] || []) this.openDoor(d, true);
       this.weapons.reset(checkpoint.weapons);
       this.player.place(checkpoint.x, checkpoint.z, checkpoint.yaw);
     } else {
@@ -497,6 +508,24 @@ export class Game {
     }
   }
 
+  // Personal bests per level (fastest time, best score, most kills/secrets).
+  get records() { try { return JSON.parse(localStorage.getItem('sam.records') || '{}'); } catch { return {}; } }
+
+  recordLevel() {
+    const id = this.levelDef.id, s = this.stats, all = this.records;
+    const prev = all[id] || {};
+    const cur = { time: s.time, score: s.score - (s.levelScoreStart || 0), kills: s.kills, total: s.total, secrets: s.secrets, secretTotal: s.secretTotal };
+    const best = {
+      time: prev.time ? Math.min(prev.time, cur.time) : cur.time,
+      score: Math.max(prev.score || 0, cur.score),
+      kills: Math.max(prev.kills || 0, cur.kills), total: cur.total,
+      secrets: Math.max(prev.secrets || 0, cur.secrets), secretTotal: cur.secretTotal,
+    };
+    this.lastRecord = { newTime: !prev.time || cur.time < prev.time, newScore: cur.score > (prev.score || 0) };
+    all[id] = best;
+    try { localStorage.setItem('sam.records', JSON.stringify(all)); } catch { /* ignore */ }
+  }
+
   startArena() {
     this.carry = null;
     this.stats.score = 0;
@@ -548,11 +577,60 @@ export class Game {
   recordArena() {
     const e = this.encounters.find((x) => x.endless);
     if (!e) return null;
+    if (this.settings.godMode) return { wave: e.waveNum || 0, score: this.stats.score, isBest: false, best: this.arenaBest, god: true };
     const run = { wave: e.waveNum || 0, score: this.stats.score };
     const best = this.arenaBest;
     const isBest = run.wave > best.wave || (run.wave === best.wave && run.score > best.score);
     if (isBest) try { localStorage.setItem('sam.arena', JSON.stringify(run)); } catch { /* ignore */ }
     return { ...run, isBest, best: isBest ? run : best };
+  }
+
+  collectKey(id) {
+    if (this.keys.has(id)) return;
+    this.keys.add(id);
+    const name = this.level.keys[id] || 'key';
+    this.hud.message(`You found the ${name}!`, 3, 'big');
+    this.hud.log('A sealed door has opened', '#7fdcff');
+    this.audio.play('secret');
+    for (const d of this.level.keyDoors[id] || []) this.openDoor(d);
+  }
+
+  // Secret invincibility toggle (logo x5 on the main menu, or type "serious" in game).
+  toggleGodMode() {
+    this.settings.godMode = !this.settings.godMode;
+    this.saveSettings();
+    this.player.god = this.settings.godMode;
+    this.audio.play(this.settings.godMode ? 'powerup' : 'switch');
+    const txt = this.settings.godMode ? 'INVINCIBILITY ON' : 'INVINCIBILITY OFF';
+    if (this.state === 'playing') this.hud.message(txt, 2.5, 'big');
+    this.ui?.toast(txt);
+  }
+
+  // What the player should do next, and where (for the HUD tracker + compass).
+  objective() {
+    const p = this.player.pos;
+    const active = this.encounters.find((e) => e.state === 'active');
+    if (active) {
+      if (active.endless) return { text: `Survive wave ${active.waveNum || 1}` };
+      let n = this.spawnQueue.filter((q) => q.enc === active.id).length;
+      for (const en of this.enemies.list) if (en.alive && en.encounter === active.id) n++;
+      if (active.survive && active.time < active.survive) return { text: `Hold out! ${n} enemies on the field` };
+      if (this.boss && this.boss.alive) return { text: `Defeat ${this.boss.def.name}` };
+      return { text: n ? `Clear the area: ${n} enem${n === 1 ? 'y' : 'ies'} left` : 'Clear the area' };
+    }
+    if (this.exit?.active) return { text: 'Reach the exit portal', x: this.exit.x, z: this.exit.z };
+    const next = this.encounters.find((e) => e.state === 'idle');
+    // the next area is behind a sealed door: point at the missing key instead
+    const sealed = next && (next.lock || []).map((d) => this.level.doors[d]).find((d) => d && d.keyId && !this.keys.has(d.keyId) && d.state === 'closed');
+    if (sealed) {
+      const key = this.pickups.list.find((k) => k.kind === 'key' && k.sub === sealed.keyId);
+      if (key) return { text: `Find the ${this.level.keys[sealed.keyId]}`, x: key.obj.position.x, z: key.obj.position.z };
+    }
+    if (next) {
+      const [x0, z0, x1, z1] = next.area;
+      return { text: 'Press onward', x: (x0 + x1) / 2, z: Math.min(z1 - 3, Math.max(z0 + 3, p.z)) };
+    }
+    return { text: '' };
   }
 
   finishEncounter(e) {
@@ -607,6 +685,37 @@ export class Game {
         this.padCool = 0.5;
         this.audio.play('rocket', { rate: 1.4, vol: 0.7 });
         this.audio.play('jump');
+      }
+    }
+    // sealed doors explain themselves
+    this.doorHintT -= dt;
+    for (const d of Object.values(this.level.doors)) {
+      if (!d.keyId || d.state !== 'closed' || this.doorHintT > 0 || this.keys.has(d.keyId)) continue;
+      if (Math.hypot(pp.x - d.cx, pp.z - d.cz) < 5) { this.doorHintT = 4; this.hud.message(`Sealed. Find the ${this.level.keys[d.keyId]}`, 2.5); this.audio.play('empty'); }
+    }
+    // spike traps: warn, strike, retract
+    for (const S of this.level.spikeTraps) {
+      const t = this.stats.time + S.offset;
+      const cycle = Math.floor(t / S.period), ph = t - cycle * S.period;
+      const striking = ph < S.up, warning = ph > S.period - 0.55;
+      const target = striking ? S.y + 0.55 : warning ? S.y - 0.75 : S.y - 1.2;
+      S.mesh.position.y += (target - S.mesh.position.y) * Math.min(1, dt * (striking ? 30 : 10));
+      const cx = (S.x0 + S.x1) / 2, cz = (S.z0 + S.z1) / 2;
+      const near = Math.hypot(pp.x - cx, pp.z - cz) < 30;
+      if (warning && S.warnCycle !== cycle) { S.warnCycle = cycle; if (near) this.audio.play('switch', { pos: { x: cx, y: S.y, z: cz }, vol: 0.8 }); }
+      if (!striking) continue;
+      const inS = (x, z) => x > S.x0 && x < S.x1 && z > S.z0 && z < S.z1;
+      if (S.hitCycle !== cycle) {
+        S.hitCycle = cycle;
+        if (near) this.audio.play('chain', { pos: { x: cx, y: S.y, z: cz }, rate: 1.4 });
+        if (p.alive && inS(pp.x, pp.z) && pp.y < S.y + 0.9) {
+          p.damage(30, null);
+          p.vel.y = Math.max(p.vel.y, 6); p.onGround = false;
+          this.effects.blood(pp.x, pp.y + 0.5, pp.z, 0, 1, 0, 10);
+        }
+        for (const e of this.enemies.list) {
+          if (e.alive && !e.def.fly && !e.def.boss && inS(e.pos.x, e.pos.z) && e.pos.y < S.y + 0.9) e.damage(70, { x: 0, y: 1, z: 0 }, 'melee');
+        }
       }
     }
     // lava: burns the player and any grounded enemy standing in it
@@ -669,7 +778,7 @@ export class Game {
     this.checkpoint = {
       ...cp, done: this.encounters.filter((e) => e.state === 'done').map((e) => e.id),
       health: Math.max(this.player.health, 50), armor: this.player.armor, weapons: this.weapons.snapshot(),
-      score: this.stats.score, collected: [...this.collected], bombs: this.player.bombs,
+      score: this.stats.score, collected: [...this.collected], bombs: this.player.bombs, keys: [...this.keys],
       secrets: this.secrets.map((s, i) => (s.found ? i : -1)).filter((i) => i >= 0),
     };
     this.hud.log('Checkpoint saved', '#9fe0ff');
@@ -840,8 +949,9 @@ export class Game {
     this.hud.show(false);
     this.audio.play('victory');
     this.carry = { health: this.player.health, armor: this.player.armor, weapons: this.weapons.snapshot(), bombs: this.player.bombs };
+    this.recordLevel();
     const next = this.levelIndex + 1;
-    try { localStorage.setItem('sam.save', JSON.stringify({ level: next, carry: this.carry, score: this.stats.score, difficulty: this.settings.difficulty })); } catch { /* ignore */ }
+    try { localStorage.setItem('sam.save', JSON.stringify({ level: next, levelId: LEVELS[next]?.id, carry: this.carry, score: this.stats.score, difficulty: this.settings.difficulty })); } catch { /* ignore */ }
     this.progress.unlocked = Math.max(this.progress.unlocked || 1, Math.min(LEVELS.length, next + 1));
     this.saveProgress();
     this.ui?.showComplete(this.stats, LEVELS[this.levelIndex], next < LEVELS.length);
@@ -909,6 +1019,12 @@ export class Game {
       this.updateLevelFx(dt);
       this.updateWeather(dt);
       if (input.wasPressed('KeyB')) this.seriousBomb();
+      // typed cheat: "serious" toggles invincibility
+      for (const code of input.pressed) {
+        if (!code.startsWith('Key')) continue;
+        this.cheatBuf = ((this.cheatBuf || '') + code.slice(3).toLowerCase()).slice(-7);
+        if (this.cheatBuf === 'serious') { this.cheatBuf = ''; this.toggleGodMode(); }
+      }
       // low-health heartbeat
       if (this.player.alive && this.player.health <= 25) {
         this.heartT = (this.heartT || 0) - dt;

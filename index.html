@@ -40,6 +40,8 @@
       <div class="kv"><span>SCORE</span><b id="hud-score-val">0</b></div>
       <div class="kv"><span>KILLS</span><b id="hud-kills-val">0 / 0</b></div>
       <div class="kv"><span>SECRETS</span><b id="hud-secrets-val">0 / 0</b></div>
+      <div id="hud-objective"></div>
+      <div id="hud-god">GOD MODE</div>
     </div>
     <div id="hud-fps"></div>
     <div id="hud-boss"><div id="hud-boss-name"></div><div class="bar"><div id="hud-boss-fill"></div></div></div>
@@ -70,10 +72,13 @@
     </div>
     <div id="hud-ammolist" class="panel"></div>
     <div id="hud-weapons"></div>
+    <div id="hud-compass"><svg viewBox="0 0 24 24" width="30" height="30"><path d="M12 2l7 18-7-4-7 4z" fill="currentColor"/></svg><span id="hud-compass-d"></span></div>
 
     <div id="level-card"><div id="level-card-name"></div><div id="level-card-sub"></div></div>
   </div>
 
+  <div id="fx-fade"></div>
+  <div id="toast"></div>
   <!-- ====================== MENUS ====================== -->
   <div id="ui">
     <div id="menu-loading" class="menu show">
@@ -115,6 +120,7 @@
         </label>
         <label class="chk"><input type="checkbox" id="opt-invert" /> Invert mouse Y</label>
         <label class="chk"><input type="checkbox" id="opt-fps" /> Show FPS</label>
+        <label class="chk"><input type="checkbox" id="opt-compass" /> Show objective marker</label>
       </div>
       <div class="buttons"><button data-act="back">Back</button></div>
     </div>
@@ -139,6 +145,7 @@
 
     <div id="menu-pause" class="menu dim">
       <h2>Paused</h2>
+      <p class="hint" id="pause-info"></p>
       <div class="buttons">
         <button data-act="resume">Resume</button>
         <button data-act="restart">Restart from checkpoint</button>
