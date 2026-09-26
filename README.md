@@ -5,6 +5,8 @@ kamikazes, charging bulls, a ten-weapon arsenal and a 22-metre boss. Everything 
 sound effects and music are generated at load time, so there are no binary assets and it runs offline. Built on a
 vendored Three.js.
 
+**▶ Play online: https://sam.jwhitton.com** (auto-deployed from this repo via GitHub Pages).
+
 **Full manual (controls, arsenal, bestiary, architecture, testing): open [`GUIDE.html`](GUIDE.html).**
 
 ## Play
